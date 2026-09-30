@@ -13,8 +13,7 @@ async function request(path, options = {}) {
 }
 
 export const getPets = () => request('/pets');
-export const createPet = (pet) =>
-  request('/pets', { method: 'POST', body: JSON.stringify(pet) });
-export const updatePet = (id, pet) =>
-  request(`/pets/${id}`, { method: 'PUT', body: JSON.stringify(pet) });
+export const createPet = (pet) =>request('/pets', { method: 'POST', body: JSON.stringify(pet) });
+export const updatePet = (id, pet) => request(`/pets/${id}`, { method: 'PUT', body: JSON.stringify(pet) });
 export const deletePet = (id) => request(`/pets/${id}`, { method: 'DELETE' });
+export const getOwners = () => request('/owners');

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
-import { getPets, createPet, updatePet, deletePet } from './api';
-import PetForm from './components/petForm';
-import PetList from './components/Petlist';
+import { getPets, createPet, updatePet, deletePet, getOwners } from './api';
+import PetForm from './components/PetForm';
+import PetList from './components/PetList';
 
 export default function App() {
   const [pets, setPets] = useState([]);
   const [editingPet, setEditingPet] = useState(null);
   const [error, setError] = useState('');
+  const [owners, setOwners] = useState([]);
 
   const loadPets = async () => {
     try {
@@ -19,11 +20,20 @@ export default function App() {
     }
   };
 
+  const loadOwners = async() =>{
+    try{
+      setOwners(await getOwners());
+      setError('');
+    }catch(err){
+      setError('No se pudo conectar con el servidor.')
+      console.log("ERROROR", err);
+    }
+  }
+
   useEffect(() => {
     loadPets();
+    loadOwners();
   }, []);
-
-  // Devuelve true si se guardó, para que el formulario sepa si limpiarse
   const handleSave = async (pet) => {
     try {
       if (editingPet) await updatePet(editingPet.id, pet);
@@ -61,6 +71,7 @@ export default function App() {
         <h2>{editingPet ? `Editar a ${editingPet.name}` : 'Agregar mascota'}</h2>
         <PetForm
           editingPet={editingPet}
+          owners={owners}
           onSubmit={handleSave}
           onCancel={() => setEditingPet(null)}
         />

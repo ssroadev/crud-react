@@ -66,6 +66,13 @@ app.delete('/pets/:id', async (req, res) => {
   res.status(204).end();
 });
 
+app.get('/owners', async(req, res)=>{
+  let query = supabase.from('profiles').select('*').order('created_at', { ascending: false });
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en http://localhost:${PORT}`);
 });

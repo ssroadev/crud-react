@@ -18,7 +18,7 @@ const toForm = (pet) => ({
   notes: pet.notes ?? '',
 });
 
-export default function PetForm({ editingPet, onSubmit, onCancel }) {
+export default function PetForm({ editingPet, owners=[], onSubmit, onCancel }) {
   const [form, setForm] = useState(EMPTY);
 
   useEffect(() => {
@@ -44,15 +44,15 @@ export default function PetForm({ editingPet, onSubmit, onCancel }) {
   return (
     <form onSubmit={handleSubmit}>
       <label>
-        Id del dueño
-        <input
-          type="number"
-          name="id_owner"
-          value={form.id_owner}
-          onChange={handleChange}
-          disabled={Boolean(editingPet)}
-          required
-        />
+        Dueño
+        <select name='id_owner' value={form.id_owner} onChange={handleChange} disabled={Boolean(editingPet)} required>
+          <option value="">Selecciona un dueño</option>
+            {owners.map((owner) => (
+              <option key={owner.id} value={owner.id}>
+                {owner.first_name} {owner.last_name}
+              </option>
+            ))}
+        </select>
       </label>
       <label>
         Nombre
