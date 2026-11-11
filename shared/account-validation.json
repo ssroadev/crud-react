@@ -1,0 +1,6 @@
+{
+  "passwordMinLength": 8,
+  "passwordMaxLength": 128,
+  "nameMaxLength": 80,
+  "roles": ["owner", "caregiver"]
+}

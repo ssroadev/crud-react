@@ -68,3 +68,117 @@ button.danger { background: transparent; color: var(--danger); border-color: var
   color: var(--danger);
 }
 .empty { color: var(--muted); }
+
+.site-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem max(1rem, calc((100% - 1180px) / 2));
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+}
+.brand { color: var(--accent); text-decoration: none; font-size: 1.6rem; font-weight: 800; white-space: nowrap; }
+.brand span { font-size: 2rem; vertical-align: middle; }
+.site-header nav, .section-tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.site-header nav button { border-color: transparent; }
+.wide-main { max-width: 1180px; }
+.page-intro { padding: 1rem 0 1.5rem; max-width: 720px; }
+.page-intro h1 { font-size: clamp(2rem, 5vw, 3.1rem); line-height: 1.15; letter-spacing: -0.035em; margin: 0.5rem 0 1rem; }
+.eyebrow { color: var(--accent); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 0.4rem; }
+.muted { color: var(--muted); }
+.small { font-size: 0.82rem; }
+.section-tabs { border-bottom: 1px solid var(--line); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+.account-selector { max-width: 520px; margin-bottom: 2rem; }
+.editor-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 2rem; align-items: start; }
+.section-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.section-heading h2 { margin: 0; font-size: 1.7rem; }
+.status-badge { background: #e8ebed; padding: 0.3rem 0.7rem; border-radius: 100px; font-size: 0.78rem; }
+.status-badge.published { background: #d9eee7; color: #17503d; }
+.editor-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 1rem; }
+.form-section, .caregiver-card { padding: 1.5rem; background: #fff; border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
+.form-section { display: grid; gap: 0.8rem; }
+.form-section h3 { margin: 0; font-size: 1.05rem; }
+.form-section p { margin: 0; }
+.choice-group { border: 0; padding: 0; margin: 0; min-width: 0; }
+.choice-group legend { padding: 0 0 0.5rem; font-size: 0.9rem; }
+.choices { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.choices label { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.7rem; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
+.choices label:has(input:checked) { border-color: var(--accent); background: #edf7f3; }
+input[type="checkbox"] { accent-color: var(--accent); width: 1rem; height: 1rem; margin: 0; flex: 0 0 auto; }
+.checkbox-label { display: flex; align-items: center; gap: 0.6rem; }
+.service-row { padding: 0.5rem 0; border-bottom: 1px solid #edf0ee; }
+.rate-inputs { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 0.75rem; margin-top: 0.75rem; }
+.availability-row { display: grid; grid-template-columns: minmax(90px, 1.1fr) minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 0.5rem; }
+.availability-row input, .availability-row select, .photo-input input { width: 100%; min-width: 0; }
+.photo-input { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 0.5rem; }
+.field-error { font-size: 0.83rem; color: var(--danger); margin: 0; }
+[aria-invalid="true"] { border-color: var(--danger); }
+.save-panel { padding: 0.5rem 0; }
+.form-actions { flex-wrap: wrap; }
+button:disabled { opacity: 0.6; cursor: wait; }
+.success { padding: 1rem; border-radius: 8px; color: #17503d; background: #e2f2e9; border: 1px solid #a0cbb4; }
+.profile-preview { position: sticky; top: 1rem; }
+.preview-toggle { display: none; }
+.caregiver-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; align-items: start; }
+.card-heading { display: flex; gap: 0.85rem; align-items: center; }
+.card-heading h3 { margin: 0; font-size: 1.3rem; }
+.card-heading p { margin: 0; }
+.avatar { display: grid; place-items: center; flex: 0 0 52px; height: 52px; border-radius: 50%; background: #e0efea; color: var(--accent); font-size: 1.4rem; font-weight: 700; }
+.caregiver-card h4 { margin: 1.3rem 0 0.5rem; font-size: 0.9rem; }
+.caregiver-card p { overflow-wrap: anywhere; }
+.preserve-lines { white-space: pre-wrap; }
+.tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.tags span { background: #edf4f1; color: #34594e; padding: 0.25rem 0.6rem; border-radius: 5px; font-size: 0.8rem; }
+.rate-list, .schedule-list { list-style: none; padding: 0; margin: 0; font-size: 0.85rem; }
+.rate-list li, .schedule-list li { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid #edf0ee; }
+.photo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.photo-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 7px; background: #eef2f0; }
+.empty-state { text-align: center; padding: 3rem 1.5rem; border: 1px dashed var(--line); border-radius: 12px; background: #fff; }
+.empty-state h2 { margin-top: 0; }
+.location-picker { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 0.65rem; }
+.location-picker legend { font-weight: 650; padding: 0 0 0.7rem; }
+.location-search-row { display: flex; flex-wrap: wrap; align-items: end; gap: 0.5rem; }
+.location-search-row > label { flex: 1 1 240px; min-width: 0; }
+.location-search-row input { width: 100%; }
+.location-results { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
+.location-results button { text-align: left; width: 100%; overflow-wrap: anywhere; }
+.selected-location { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; color: var(--accent); font-size: 0.85rem; }
+.coordinate-inputs { display: flex; align-items: end; flex-wrap: wrap; gap: 0.5rem; padding-top: 0.75rem; }
+.coordinate-inputs > label { flex: 1 1 100px; min-width: 0; }
+.coordinate-inputs input { width: 100%; }
+summary { cursor: pointer; font-size: 0.85rem; color: var(--accent); }
+.attribution { margin: 0; font-size: 0.7rem; }
+.attribution a, .back-link { color: var(--accent); }
+.search-panel { padding: 1.5rem; background: #fff; border: 1px solid var(--line); border-radius: 12px; gap: 1.2rem; }
+.search-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+.search-filters input, .search-filters select { min-width: 0; width: 100%; }
+.availability-filter { border: 0; padding: 0; margin: 0; min-width: 0; }
+.availability-filter legend { font-size: 0.9rem; padding: 0 0 0.6rem; }
+.availability-inputs { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 660px; }
+.results-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem; margin: 1.6rem 0 1rem; }
+.result-card { display: flex; flex-direction: column; gap: 0.8rem; height: 100%; }
+.result-card p { margin: 0; }
+.result-bio { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.result-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.4rem; color: var(--accent); font-size: 0.82rem; }
+.button-link { display: inline-flex; justify-content: space-between; padding: 0.6rem 0.8rem; border: 1px solid var(--accent); border-radius: 6px; color: var(--accent); text-decoration: none; font-size: 0.9rem; margin-top: auto; gap: 1rem; }
+.button-link:hover { background: #edf7f3; }
+.caregiver-detail { max-width: 760px; margin: 0 auto; }
+.back-link { display: inline-block; margin-bottom: 1rem; }
+.profile-rating { color: var(--accent); font-weight: 600; font-size: 0.9rem; }
+@media (max-width: 900px) {
+  .search-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .editor-layout { grid-template-columns: minmax(0, 1fr); }
+  .profile-preview { display: none; position: static; }
+  .profile-preview.is-visible { display: block; }
+  .preview-toggle { display: inline-block; }
+}
+@media (max-width: 600px) {
+  .search-panel { padding: 1rem; }
+  .search-filters { grid-template-columns: minmax(0, 1fr); gap: 0.75rem; }
+  .site-header { align-items: start; flex-direction: column; gap: 0.5rem; }
+  .caregiver-grid { grid-template-columns: minmax(0, 1fr); }
+  .form-section, .caregiver-card { padding: 1rem; }
+  .availability-row { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
+  .availability-row label:first-child { grid-column: 1 / -1; }
+}

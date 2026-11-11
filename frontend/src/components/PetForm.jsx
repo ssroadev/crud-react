@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 const EMPTY = {
-  id_owner: '',
   name: '',
   size: 'mediano',
   breed: '',
@@ -10,7 +9,6 @@ const EMPTY = {
 };
 
 const toForm = (pet) => ({
-  id_owner: pet.id_owner,
   name: pet.name,
   size: pet.size,
   breed: pet.breed ?? '',
@@ -18,12 +16,8 @@ const toForm = (pet) => ({
   notes: pet.notes ?? '',
 });
 
-export default function PetForm({ editingPet, owners=[], onSubmit, onCancel }) {
-  const [form, setForm] = useState(EMPTY);
-
-  useEffect(() => {
-    setForm(editingPet ? toForm(editingPet) : EMPTY);
-  }, [editingPet]);
+export default function PetForm({ editingPet, onSubmit, onCancel }) {
+  const [form, setForm] = useState(() => editingPet ? toForm(editingPet) : EMPTY);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -31,7 +25,6 @@ export default function PetForm({ editingPet, owners=[], onSubmit, onCancel }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const ok = await onSubmit({
-      id_owner: Number(form.id_owner),
       name: form.name,
       size: form.size,
       breed: form.breed || null,
@@ -43,17 +36,6 @@ export default function PetForm({ editingPet, owners=[], onSubmit, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit}>
-      <label>
-        Dueño
-        <select name='id_owner' value={form.id_owner} onChange={handleChange} disabled={Boolean(editingPet)} required>
-          <option value="">Selecciona un dueño</option>
-            {owners.map((owner) => (
-              <option key={owner.id} value={owner.id}>
-                {owner.first_name} {owner.last_name}
-              </option>
-            ))}
-        </select>
-      </label>
       <label>
         Nombre
         <input name="name" value={form.name} onChange={handleChange} required />

@@ -1,0 +1,7 @@
+{
+  "species": ["Perros", "Gatos", "Aves", "Conejos", "Roedores", "Reptiles", "Otros"],
+  "services": ["Paseos", "Cuidado a domicilio", "Guardería", "Alojamiento", "Acompañamiento", "Administración de medicamentos"],
+  "specialties": ["Cachorros", "Mascotas mayores", "Necesidades especiales", "Mascotas con ansiedad", "Primeros auxilios"],
+  "days": ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"],
+  "rateUnits": ["hora", "día", "noche", "paseo", "visita"]
+}
