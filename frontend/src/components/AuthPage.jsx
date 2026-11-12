@@ -86,9 +86,9 @@ export default function AuthPage({ mode = 'login', onAuthenticated, notice = '' 
           {success.confirmation_required && <p className="muted small">Busca el mensaje de confirmación en tu bandeja de entrada o en spam. Después, inicia sesión para comenzar.</p>}
           {success.account ? <button className="auth-submit" onClick={() => onAuthenticated(success.account, '¡Bienvenido a PawHub! Tu perfil ya está listo.')}>Entrar a PawHub <span aria-hidden="true">→</span></button> : <a className="auth-submit" href="#login">Ir a iniciar sesión <span aria-hidden="true">→</span></a>}
         </div> : <>
-          <span className="auth-kicker">{registering ? 'EMPIEZA A SER PARTE' : 'TE ESTÁBAMOS ESPERANDO'}</span>
-          <h1>{registering ? <>Crea tu cuenta.<br /><em>El cariño ya está aquí.</em></> : <>Qué bueno<br /><em>volver a verte.</em></>}</h1>
-          <p className="auth-intro">{registering ? 'Encuentra compañía para tu mascota o comparte tu forma de cuidar.' : 'Entra a tu cuenta y sigue encontrando el cuidado que tu mascota merece.'}</p>
+          <span className="auth-kicker">{registering ? 'EMPIEZA A SER PARTE' : 'Bienvenido de nuevo'}</span>
+          <h1>{registering ? <>Crea tu cuenta.<br /><em>El cariño ya está aquí.</em></> : 'Inicia sesión en PawHub'}</h1>
+          {registering && <p className="auth-intro">Encuentra compañía para tu mascota o comparte tu forma de cuidar.</p>}
           {notice && <p className="auth-notice" role="status">{notice}</p>}
           <form noValidate onSubmit={submit} className="auth-form">
             <fieldset disabled={busy}>
@@ -107,6 +107,7 @@ export default function AuthPage({ mode = 'login', onAuthenticated, notice = '' 
                   <label className={form.role === 'caregiver' ? 'selected' : ''}><input type="radio" name="role" value="caregiver" checked={form.role === 'caregiver'} onChange={change} /><span><strong>Quiero cuidar mascotas</strong><small>Quiero ofrecer mis servicios.</small></span></label>
                 </fieldset>
               </>}
+              {!registering && <p className="login-hint">Usa el correo y la contraseña de tu cuenta PawHub.</p>}
               <div ref={summary} tabIndex={-1} className={Object.values(errors).some(Boolean) ? 'error auth-errors' : 'auth-validation'} role={Object.values(errors).some(Boolean) ? 'alert' : 'status'}>
                 {Object.values(errors).some(Boolean) ? <>{errors.form || 'Revisa los campos señalados para continuar.'}</> : form.email && form.password && !Object.keys(invalid).length ? '✓ Tus datos están listos para continuar.' : null}
               </div>
@@ -114,15 +115,21 @@ export default function AuthPage({ mode = 'login', onAuthenticated, notice = '' 
             </fieldset>
           </form>
           <p className="auth-switch">{registering ? '¿Ya eres parte de PawHub?' : '¿Aún no tienes una cuenta?'} <a href={registering ? '#login' : '#register'}>{registering ? 'Inicia sesión' : 'Crear cuenta'}</a></p>
+          {!registering && <HomeLink className="login-home">Volver al inicio</HomeLink>}
         </>}
       </div>
     </section>
-    <aside className="auth-visual" aria-label="El cariño nos conecta">
+    {registering ? <aside className="auth-visual" aria-label="El cariño nos conecta">
       <div className="auth-story"><span className="auth-story-tag">EL CARIÑO NOS CONECTA</span><h2>Su compañía lo cambia todo.<br />Su cuidado también.</h2><p>Personas que entienden que una mascota es parte de la familia.</p></div>
       <div className="auth-photo"><img src="/images/pawhub-companion.webp" alt="Una dueña abraza con cariño a su gato" /><span className="auth-photo-caption"><span aria-hidden="true">♡</span> Pequeños momentos. Grandes vínculos.</span></div>
       <div className="auth-benefits"><span><span aria-hidden="true">✓</span> Cuidadores cerca de ti</span><span><span aria-hidden="true">✓</span> Todo en un mismo lugar</span></div>
-    </aside>
+    </aside> : <aside className="auth-visual login-visual" aria-label="PawHub y sus mascotas">
+      <div className="login-art">
+        <div className="login-cat"><img src="/images/pawhub-cat-cream.png" alt="Gato atigrado de ojos verdes sobre fondo crema" width="1254" height="1254" /></div>
+        <div className="login-art-card"><img className="login-brand-mark" src="/images/pawhub-logo.png" alt="PawHub" width="198" height="50" /><p>Conecta con cuidadores de confianza y dale a tu mascota el cariño que merece.</p></div>
+      </div>
+    </aside>}
     </main>
-    <footer className="auth-footer"><span>Hecho para quienes aman a sus mascotas.</span><span>PawHub © {new Date().getFullYear()}</span></footer>
+    {registering && <footer className="auth-footer"><span>Hecho para quienes aman a sus mascotas.</span><span>PawHub © {new Date().getFullYear()}</span></footer>}
   </div>;
 }

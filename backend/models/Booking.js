@@ -14,7 +14,7 @@ class Booking {
     this.status = status;
     this.totalAmount = totalAmount;
     this.createdAt = createdAt;
-    this.review = null; // 1 -> 0..1 Review
+    this.review = null; 
   }
 
   confirm() {

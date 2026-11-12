@@ -3,27 +3,27 @@
 .booking-fields { min-width: 0; border: 0; padding: 0; margin: 0; display: grid; gap: 0.9rem; }
 .booking-fields input, .booking-fields select, .booking-fields textarea { min-width: 0; width: 100%; }
 .booking-time-grid { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 0.75rem; }
-.booking-estimate { background: #f0f7f4; padding: 0.8rem; border-radius: 8px; margin: 0; font-size: 0.87rem; }
-.booking-success { background: #f3faf6; border-color: #a5cbbc; }
+.booking-estimate { background: var(--accent-soft); padding: 0.8rem; border-radius: 8px; margin: 0; font-size: 0.87rem; }
+.booking-success { background: var(--accent-soft); border-color: var(--accent-border); }
 .request-toolbar { display: flex; justify-content: space-between; flex-wrap: wrap; align-items: start; gap: 1rem; }
 .request-toolbar .section-tabs { margin: 0; border: 0; padding: 0; }
 .request-list { display: grid; gap: 1.25rem; }
 .request-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 1.5rem; min-width: 0; }
-.request-card.has-update { border-color: #319278; box-shadow: 0 0 0 1px #319278; }
+.request-card.has-update { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .request-card-heading { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: 0.8rem; }
 .request-card-heading h3 { margin: 0; font-size: 1.25rem; }
 .status-badge.requested { background: #fff1d8; color: #80550e; }
-.status-badge.confirmed { background: #dcf1e7; color: #1b6548; }
+.status-badge.confirmed { background: var(--accent-soft); color: var(--accent-ink); }
 .status-badge.rejected { background: #fbe8e4; color: #9a352b; }
-.status-badge.cancelled, .status-badge.completed { background: #edf0ef; color: #52605d; }
+.status-badge.cancelled, .status-badge.completed { background: #edf0f0; color: #525f60; }
 .request-details { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1.2rem 0; margin: 0; }
 .request-details dt { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.2rem; }
 .request-details dd { margin: 0; font-size: 0.9rem; overflow-wrap: anywhere; }
 .request-wide { grid-column: 1 / -1; }
-.request-notes { padding: 0.9rem; margin: 0 0 0.75rem; background: #f6f8f7; border-radius: 7px; font-size: 0.85rem; }
+.request-notes { padding: 0.9rem; margin: 0 0 0.75rem; background: #f6f8f8; border-radius: 7px; font-size: 0.85rem; }
 .request-notes p { margin: 0.4rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.request-update { margin-top: 1rem; display: grid; gap: 0.65rem; padding: 1rem; background: #eaf6ef; border-radius: 8px; font-size: 0.85rem; }
-.request-update.rejected { background: #fff0ec; }
+.request-update { margin-top: 1rem; display: grid; gap: 0.65rem; padding: 1rem; background: var(--accent-soft); color: var(--accent-ink); border-radius: 8px; font-size: 0.85rem; }
+.request-update.rejected { background: #fff0ec; color: #9a352b; }
 .request-update button { justify-self: start; }
 .review-controls { display: grid; gap: 0.8rem; margin-top: 1rem; }
 .reject-confirmation { padding: 0.8rem; background: #fff5ef; border-radius: 7px; font-size: 0.85rem; }
@@ -34,47 +34,47 @@
 .management-heading > button { white-space: nowrap; }
 .request-perspectives { margin-bottom: 1.5rem; }
 .request-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin: 0 0 1.8rem; }
-.metric-card { text-align: left; background: #fff; color: var(--ink); border: 1px solid #dde5df; border-radius: 12px; padding: 1.1rem 1.2rem; }
-.metric-card:hover, .metric-card.selected { border-color: var(--accent); background: #f3faf6; }
-.metric-top { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; color: #78857d; font-size: 0.8rem; }
-.metric-top > span:last-child { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; background: #edf4ef; color: var(--accent); }
+.metric-card { text-align: left; background: #fff; color: var(--ink); border: 1px solid #dde4e5; border-radius: 12px; padding: 1.1rem 1.2rem; }
+.metric-card:hover, .metric-card.selected { border-color: var(--accent); background: #f3f9fa; }
+.metric-top { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; color: #788485; font-size: 0.8rem; }
+.metric-top > span:last-child { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; background: #edf3f4; color: var(--accent); }
 .metric-card.requested .metric-top > span:last-child { color: #aa7722; background: #fff4df; }
 .metric-card.rejected .metric-top > span:last-child { color: #b26050; background: #fff1ec; }
 .metric-card > strong { display: block; font-size: 2rem; line-height: 1.25; margin: 0.3rem 0; letter-spacing: -0.04em; font-weight: 650; }
-.metric-card > small { display: block; color: #90a096; font-size: 0.7rem; }
+.metric-card > small { display: block; color: #909fa0; font-size: 0.7rem; }
 .management-tabs { display: flex; border-bottom: 1px solid var(--line); gap: 0.5rem; margin-bottom: 1rem; }
-.management-tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: #7c8c81; padding: 0.8rem 1.1rem; font-size: 0.88rem; }
+.management-tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: #7c8b8c; padding: 0.8rem 1.1rem; font-size: 0.88rem; }
 .management-tabs button.selected { color: var(--accent); border-bottom-color: var(--accent); font-weight: 650; }
-.request-filter-panel { border: 1px solid #dfe6e1; background: #fff; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
+.request-filter-panel { border: 1px solid #dfe5e6; background: #fff; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
 .request-filters { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1.3fr; gap: 0.75rem; }
 .request-filters label { font-size: 0.75rem; gap: 0.4rem; color: var(--muted); }
 .request-filters input, .request-filters select { width: 100%; min-width: 0; font-size: 0.8rem; }
 .date-shortcuts { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.9rem; }
-.date-shortcuts button { font-size: 0.73rem; padding: 0.3rem 0.65rem; border-color: #dbe5de; color: #6a8172; }
+.date-shortcuts button { font-size: 0.73rem; padding: 0.3rem 0.65rem; border-color: #dbe4e5; color: #6a7f81; }
 .date-shortcuts > span { margin-left: auto; font-size: 0.7rem; }
-.request-result-count, .agenda-description { color: #7a8b80; font-size: 0.85rem; }
-.unread-responses { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 1rem; margin: 1rem 0; border: 1px solid #bfdccd; border-radius: 10px; background: #eef8f0; color: #3b7252; font-size: 0.85rem; }
+.request-result-count, .agenda-description { color: #7a8a8b; font-size: 0.85rem; }
+.unread-responses { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 1rem; margin: 1rem 0; border: 1px solid var(--accent-border); border-radius: 10px; background: var(--accent-soft); color: var(--accent-ink); font-size: 0.85rem; }
 .request-list { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
-.request-person { margin: 0.4rem 0 0; color: #7f8e84; font-size: 0.83rem; }
+.request-person { margin: 0.4rem 0 0; color: #7f8d8e; font-size: 0.83rem; }
 .pet-brief { display: flex; align-items: center; gap: 0.7rem; padding: 1rem 0 0; }
-.pet-avatar { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; color: #6b8875; background: #edf4ef; flex: 0 0 38px; font-size: 1rem; font-weight: 650; }
+.pet-avatar { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; color: #6b8688; background: #edf3f4; flex: 0 0 38px; font-size: 1rem; font-weight: 650; }
 .pet-brief strong { display: block; font-size: 0.9rem; }
-.pet-brief span { display: block; font-size: 0.72rem; color: #8b9a90; }
+.pet-brief span { display: block; font-size: 0.72rem; color: #8b999a; }
 .availability-check { display: flex; align-items: start; gap: 0.5rem; padding: 0.65rem 0.8rem; border-radius: 7px; font-size: 0.77rem; line-height: 1.5; margin: 0; }
-.availability-check.compatible { color: #3c7155; background: #eef8f0; }
+.availability-check.compatible { color: var(--accent-ink); background: var(--accent-soft); }
 .availability-check.incompatible { color: #936621; background: #fff5e5; }
 .availability-check > span { font-weight: 700; }
 .review-controls button:disabled { cursor: not-allowed; }
-.completion-controls { padding-top: 1rem; border-top: 1px solid #edf1ed; }
-.completion-confirmation { padding: 0.85rem; background: #eef7f0; border-radius: 8px; font-size: 0.85rem; margin-top: 0.75rem; }
+.completion-controls { padding-top: 1rem; border-top: 1px solid #edf1f1; }
+.completion-confirmation { padding: 0.85rem; background: var(--accent-soft); color: var(--accent-ink); border-radius: 8px; font-size: 0.85rem; margin-top: 0.75rem; }
 .completion-confirmation p { margin-top: 0; }
-.request-timeline { border-top: 1px solid #edf1ed; margin-top: 1rem; padding-top: 0.8rem; }
-.request-timeline summary { color: #819589; font-size: 0.74rem; }
-.request-timeline ol { font-size: 0.75rem; color: #8b998f; line-height: 1.8; padding-left: 1.2rem; }
+.request-timeline { border-top: 1px solid #edf1f1; margin-top: 1rem; padding-top: 0.8rem; }
+.request-timeline summary { color: #819395; font-size: 0.74rem; }
+.request-timeline ol { font-size: 0.75rem; color: #8b9899; line-height: 1.8; padding-left: 1.2rem; }
 .agenda-groups { display: grid; gap: 1.5rem; }
 .agenda-group > h2 { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem; margin: 0 0 1rem; font-size: 1rem; text-transform: capitalize; }
 .agenda-group > h2 > span:first-child { color: var(--accent); }
-.agenda-day-count { color: #8b9b90; font-size: 0.75rem; font-weight: 400; margin-left: auto; text-transform: none; }
+.agenda-day-count { color: #8b9a9b; font-size: 0.75rem; font-weight: 400; margin-left: auto; text-transform: none; }
 .request-pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.5rem; font-size: 0.8rem; }
 @media (max-width: 1000px) {
   .request-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
