@@ -46,4 +46,4 @@ app.use((error, _req, res, _next) => {
   res.status(status).json({ error: error.status ? error.message : 'No se pudo completar la operación. Intenta de nuevo.' });
 });
 
-app.listen(PORT, () => console.log(`Servidor escuchando en http://localhost:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {console.log(`Servidor escuchando en el puerto ${PORT}`);});
