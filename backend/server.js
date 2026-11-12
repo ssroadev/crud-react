@@ -24,13 +24,20 @@ app.use((req, res, next) => {
   if (!req.is('application/json')) return res.status(415).json({ error: 'Envía los datos en formato JSON.' });
   next();
 });
+
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'pawhub-backend'
+  });
+});
+
 app.use('/auth', createAuthRouter(supabase, auth, { frontendUrl }));
 app.use('/caregivers', createCaregiverRouter(supabase, auth.requireAccount));
 app.use('/locations', createLocationRouter());
 app.use('/pets', createPetRouter(supabase, auth.requireAccount));
 app.use('/bookings', createBookingRouter(supabase, auth.requireAccount));
 
-// Compatibilidad: este endpoint devuelve solamente el perfil propio.
 app.get('/owners', auth.requireAccount, (req, res) => res.json([req.account.profile]));
 app.use((error, _req, res, _next) => {
   if (error.type === 'entity.parse.failed') return res.status(400).json({ error: 'Los datos enviados no son válidos.' });
