@@ -1,0 +1,25 @@
+
+# Variables privadas
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Permitir archivos de ejemplo
+!.env.example
+!**/.env.example
+
+# Dependencias
+node_modules/
+**/node_modules/
+
+# Compilaciones
+dist/
+**/dist/
+
+# Archivos temporales
+*.log
+
+# Claves SSH
+*.pem
+*.key

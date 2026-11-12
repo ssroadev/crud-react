@@ -1,0 +1,28 @@
+
+# Dependencias instaladas localmente
+**/node_modules
+
+# Credenciales y variables privadas
+**/.env
+**/.env.*
+!**/.env.example
+
+# Git
+.git
+.gitignore
+
+# Archivos temporales
+**/*.log
+**/.DS_Store
+**/Thumbs.db
+
+# Compilaciones anteriores
+**/dist
+**/build
+
+# Archivos del editor
+.vscode
+.idea
+
+# Cobertura de pruebas
+**/coverage
