@@ -98,3 +98,94 @@ test('recomendaciones: valida necesidades múltiples, IDs bigint y filtros de b�
     assert.ok(Object.keys(parseRecommendations(query).errors).length, JSON.stringify(query));
   }
 });
+
+test('recomendaciones: la prioridad del dueño cambia el orden entre cercanía y valoraciones', () => {
+  const profiles = [caregiver({ id: 'near', rating: 3, review_count: 2 }),
+    caregiver({ id: 'reviewed', latitude: 4.70, rating: 4.8, review_count: 40 })];
+  const filters = { latitude: 4.65, longitude: -74.06, radius_km: 10 };
+  assert.equal(recommendCaregivers(profiles, { ...filters, priority: 'distance' }).recommendations[0].id, 'near');
+  const result = recommendCaregivers(profiles, { ...filters, priority: 'rating' });
+  assert.equal(result.recommendations[0].id, 'reviewed');
+  assert.equal(result.context.priority, 'rating');
+  assert.equal(result.recommendations[0].rating, 4.8);
+});
+
+test('recomendaciones: considera la cantidad de experiencias sin inventar promedios públicos', () => {
+  const result = recommendCaregivers([caregiver({ id: 'one-review', rating: 5, review_count: 1 }),
+    caregiver({ id: 'many-reviews', rating: 4.8, review_count: 40 }), caregiver()], { priority: 'rating' });
+  assert.deepEqual(result.recommendations.map((row) => row.id), ['many-reviews', 'one-review', 'ana']);
+  assert.deepEqual(result.recommendations.map((row) => row.rating), [4.8, 5, null]);
+  assert.ok(result.recommendations.every((row) => row.recommendation.availability === 'not_checked'));
+});
+
+test('recomendaciones: los mínimos de opiniones y calificación separan alternativas con motivos', () => {
+  const result = recommendCaregivers([caregiver({ id: 'match', rating: 4.5, review_count: 5 }),
+    caregiver({ id: 'low', rating: 4, review_count: 10 }), caregiver({ id: 'few', rating: 5, review_count: 1 }), caregiver()],
+  { min_rating: 4.5, min_reviews: 5 });
+  assert.deepEqual(result.recommendations.map((row) => row.id), ['match']);
+  assert.equal(result.alternatives.length, 3);
+  assert.ok(result.alternatives.find((row) => row.id === 'low').recommendation.warnings.some((warning) => warning.includes('calificación mínima')));
+  assert.ok(result.alternatives.find((row) => row.id === 'few').recommendation.warnings.some((warning) => warning.includes('opiniones')));
+  assert.equal(result.context.min_rating, 4.5);
+  assert.equal(result.context.min_reviews, 5);
+  assert.equal(result.context.personalized, true);
+  assert.equal(recommendCaregivers([caregiver()], { min_rating: 0, min_reviews: 0 }).recommendations.length, 1);
+});
+
+test('recomendaciones: solo disponibles excluye horarios y reservas en conflicto incluso de alternativas', () => {
+  const profiles = [caregiver(), caregiver({ id: 'no-hours', availability: [] }),
+    ...['requested', 'confirmed'].map((status) => caregiver({ id: status, rating: 5, review_count: 50,
+      busy_bookings: [{ status, start_at: '2026-11-16T15:00:00Z', end_at: '2026-11-16T16:00:00Z' }] }))];
+  const result = recommendCaregivers(profiles, { ...schedule, only_available: true, priority: 'rating' });
+  assert.deepEqual(result.recommendations.map((row) => row.id), ['ana']);
+  assert.deepEqual(result.alternatives, []);
+  assert.equal(result.recommendations[0].recommendation.availability, 'available');
+  assert.equal(result.context.only_available, true);
+  const expanded = recommendCaregivers(profiles, { ...schedule, only_available: false });
+  assert.equal(expanded.alternatives.length, 3);
+  assert.ok(expanded.alternatives.every((row) => row.recommendation.availability === 'unavailable'));
+});
+
+test('recomendaciones: precio prioriza la misma unidad sin aprovechar tarifas de otros servicios', () => {
+  const profiles = [caregiver({ id: 'expensive', latitude: 4.65, services: [{ name: 'Paseos', rate: 30000, unit: 'paseo' }, { name: 'Guardería', rate: 1000, unit: 'hora' }] }),
+    caregiver({ id: 'cheap', latitude: 4.70, services: [{ name: 'Paseos', rate: 12000, unit: 'paseo' }] }),
+    caregiver({ id: 'other-unit', services: [{ name: 'Paseos', rate: 1000, unit: 'hora' }] })];
+  const filters = { service: 'Paseos', rate_unit: 'paseo', latitude: 4.65, longitude: -74.06, radius_km: 10 };
+  assert.equal(recommendCaregivers(profiles, { ...filters, priority: 'distance' }).recommendations[0].id, 'expensive');
+  const result = recommendCaregivers(profiles, { ...filters, priority: 'price' });
+  assert.equal(result.recommendations[0].id, 'cheap');
+  assert.equal(result.recommendations[0].matching_services[0].rate, 12000);
+  assert.equal(result.alternatives[0].id, 'other-unit');
+  assert.equal(result.context.price_comparable, true);
+  assert.ok(result.recommendations.every((row) => Number.isFinite(row.recommendation.score)));
+  const equalPrices = recommendCaregivers([caregiver(), caregiver({ id: 'other' })], { priority: 'price', rate_unit: 'paseo' });
+  assert.ok(equalPrices.recommendations.every((row) => Number.isFinite(row.recommendation.score)));
+});
+
+test('recomendaciones: una prioridad nunca compensa una incompatibilidad ni una ubicación desconocida', () => {
+  for (const priority of ['balanced', 'distance', 'rating', 'price']) {
+    const result = recommendCaregivers([caregiver(), caregiver({ id: 'incompatible', latitude: null, specialties: [], rating: 5, review_count: 100 })],
+      { priority, rate_unit: 'paseo', needs: ['Cachorros'], latitude: 4.65, longitude: -74.06, radius_km: 10 });
+    assert.deepEqual(result.recommendations.map((row) => row.id), ['ana']);
+    assert.equal(result.alternatives[0].id, 'incompatible');
+    assert.equal(result.alternatives[0].distance_km, null);
+  }
+});
+
+test('recomendaciones: valida prioridades, mínimos y los requisitos de ubicación, tarifa y horario', () => {
+  const valid = parseRecommendations({ priority: 'price', rate_unit: 'paseo', only_available: 'true',
+    min_rating: '4.5', min_reviews: '5', date: schedule.date, start_time: schedule.start_time, end_time: schedule.end_time });
+  assert.deepEqual(valid.errors, {});
+  assert.equal(valid.filters.only_available, true);
+  assert.equal(valid.filters.min_rating, 4.5);
+  assert.equal(valid.filters.min_reviews, 5);
+  assert.equal(parseRecommendations({ only_available: 'false' }).filters.only_available, false);
+  assert.deepEqual(parseRecommendations({ priority: 'distance', latitude: '0', longitude: '0' }).errors, {});
+  for (const query of [{ priority: 'unknown' }, { priority: ['rating'] }, { priority: 'distance' }, { priority: 'price' },
+    { min_rating: '5.1' }, { min_rating: '-1' }, { min_rating: ['4', '5'] }, { min_rating: 'NaN' },
+    { min_reviews: '1.5' }, { min_reviews: '-1' }, { min_reviews: '10001' }, { min_reviews: 'Infinity' },
+    { only_available: 'yes' }, { only_available: true }, { only_available: ['true'] }, { only_available: 'true' },
+    { only_available: 'true', date: schedule.date, start_time: '11:00', end_time: '09:00' }]) {
+    assert.ok(Object.keys(parseRecommendations(query).errors).length, JSON.stringify(query));
+  }
+});

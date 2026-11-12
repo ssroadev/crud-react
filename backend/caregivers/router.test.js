@@ -142,6 +142,27 @@ test('recomendaciones HTTP: consulta reservas reales y reseñas antes de decidir
   assert.equal(result.alternatives[0].review_count, 1);
   assert.ok(result.alternatives[0].recommendation.warnings.includes('Sin disponibilidad en ese horario'));
   assert.equal('busy_bookings' in result.alternatives[0], false);
+  const strict = await (await api.get('/recommendations?date=2026-11-16&start_time=09:00&end_time=11:00&only_available=true')).json();
+  assert.deepEqual(strict.recommendations, []);
+  assert.deepEqual(strict.alternatives, []);
+  assert.equal(strict.context.only_available, true);
+  const rated = await (await api.get('/recommendations?priority=rating&min_rating=5&min_reviews=1')).json();
+  assert.equal(rated.recommendations[0].id, 'busy');
+  assert.equal(rated.context.priority, 'rating');
+  const few = await (await api.get('/recommendations?min_reviews=3')).json();
+  assert.deepEqual(few.recommendations, []);
+  assert.match(few.alternatives[0].recommendation.warnings.join(), /opiniones/);
+  assert.deepEqual(await (await api.get('?min_rating=5&min_reviews=3')).json(), []);
+});
+
+test('recomendaciones HTTP: rechaza preferencias inválidas con errores por campo', async (t) => {
+  const api = await setup(t);
+  for (const [query, field] of [['priority=distance', 'priority'], ['priority=price', 'priority'],
+    ['min_rating=6', 'min_rating'], ['min_reviews=1.5', 'min_reviews'], ['only_available=true', 'only_available']]) {
+    const response = await api.get(`/recommendations?${query}`);
+    assert.equal(response.status, 400, query);
+    assert.ok((await response.json()).errors[field]);
+  }
 });
 
 test('publica, actualiza sin duplicar y retira un perfil al guardarlo como borrador', async (t) => {

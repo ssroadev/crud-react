@@ -79,3 +79,10 @@ test('ordena por precio o reseñas sin inventar calificaciones', () => {
   assert.equal(filterCaregivers(rows, { sort: 'price' })[0].id, 'cheap');
   assert.equal(filterCaregivers(rows, { sort: 'rating' })[0].id, 'expensive');
 });
+
+test('filtra calificación y opiniones mínimas sin confundir ausencia de reseñas con cinco estrellas', () => {
+  const profiles = [caregiver(), caregiver({ id: 'match', rating: 4.5, review_count: 5 }),
+    caregiver({ id: 'few', rating: 5, review_count: 1 }), caregiver({ id: 'low', rating: 3, review_count: 10 })];
+  assert.deepEqual(filterCaregivers(profiles, { min_rating: 4.5, min_reviews: 5 }).map((row) => row.id), ['match']);
+  assert.equal(filterCaregivers(profiles, { min_rating: 0, min_reviews: 0 }).length, 4);
+});

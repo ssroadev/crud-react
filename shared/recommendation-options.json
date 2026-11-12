@@ -1,0 +1,10 @@
+{
+  "priorities": [
+    { "value": "balanced", "label": "Un buen equilibrio", "description": "Combina cercanía, experiencia de otros dueños y tarifas comparables." },
+    { "value": "distance", "label": "Estar cerca de mí", "description": "Da más importancia a la cercanía dentro de tu zona de búsqueda." },
+    { "value": "rating", "label": "Opiniones de otros dueños", "description": "Da más importancia a las valoraciones y al número de experiencias registradas." },
+    { "value": "price", "label": "Una tarifa más conveniente", "description": "Prioriza tarifas menores comparando la misma unidad de cuidado." }
+  ],
+  "minimumRatings": [3, 4, 4.5, 5],
+  "minimumReviewCounts": [3, 5, 10]
+}

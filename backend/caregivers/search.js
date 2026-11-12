@@ -17,6 +17,9 @@ function parseSearch(query) {
   number('radius_km', 0.1, 200);
   number('min_price', 0, 100000000);
   number('max_price', 0, 100000000);
+  number('min_rating', 0, 5);
+  number('min_reviews', 0, 10000);
+  if (filters.min_reviews !== undefined && !Number.isInteger(filters.min_reviews)) errors.min_reviews = 'Indica una cantidad entera de opiniones, entre 0 y 10000.';
   if (present('latitude') !== present('longitude') || (present('radius_km') && !present('latitude'))) {
     errors.location = 'Selecciona una ubicación válida para buscar por distancia.';
   }
@@ -100,6 +103,8 @@ function filterCaregivers(caregivers, filters) {
     if (caregiver.status !== 'published' || caregiver.active === false) continue;
     if (filters.species && !caregiver.species?.includes(filters.species)) continue;
     if (filters.specialty && !caregiver.specialties?.includes(filters.specialty)) continue;
+    if (filters.min_rating > 0 && (caregiver.rating === null || !Number.isFinite(caregiver.rating) || !caregiver.review_count || caregiver.rating < filters.min_rating)) continue;
+    if (filters.min_reviews > 0 && (caregiver.review_count || 0) < filters.min_reviews) continue;
     const services = matchingServices(caregiver.services, filters);
     if (!services.length) continue;
     if (!availableDuring(caregiver.availability, caregiver.busy_bookings, filters)) continue;

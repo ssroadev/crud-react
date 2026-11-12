@@ -40,6 +40,14 @@
 .filter-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .filter-hint { color: var(--muted); font-size: 10px; margin: -3px 0 0; line-height: 1.55; }
 .filter-hint a { color: var(--accent); }
+.filter-section .availability-choice { display: flex; align-items: flex-start; gap: 9px; cursor: pointer; line-height: 1.6; }
+.availability-choice input { width: 17px; height: 17px; flex: 0 0 17px; margin: 2px 0 0; accent-color: var(--accent); }
+.availability-choice:has(input:disabled) { color: var(--muted); cursor: default; }
+.applied-preferences { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; }
+.applied-preferences > span { padding: 5px 9px; border: 1px solid var(--accent-border); border-radius: 7px; color: var(--accent-ink); background: var(--accent-soft); font-size: 11px; overflow-wrap: anywhere; }
+.availability-label { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.availability-label.available { color: var(--accent-ink); }
+.availability-label.unavailable { color: #88642b; }
 .need-choices { padding: 0; margin: 2px 0 0; min-width: 0; border: 0; }
 .need-choices legend { padding-bottom: 8px; }
 .need-choices > div { display: flex; flex-wrap: wrap; gap: 6px; }
