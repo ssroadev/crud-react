@@ -1,6 +1,6 @@
 const express = require('express');
-const { validateAccount } = require('./validation');
-const { setSessionCookies, clearSessionCookies } = require('./service');
+const { validateAccount, validateRecoveryEmail, validateRecoveryPassword } = require('./validation');
+const { setSessionCookies, clearSessionCookies, setRecoverySessionCookies, clearRecoveryCookie } = require('./service');
 
 function authMessage(error, mode) {
   if (error.code === 'email_not_confirmed') return 'Confirma tu correo antes de iniciar sesión. Revisa también la carpeta de spam.';
@@ -8,11 +8,20 @@ function authMessage(error, mode) {
   if (error.code === 'weak_password') return 'La contraseña no cumple los requisitos de seguridad. Usa una más larga y combina letras y números.';
   if (error.status === 429 || error.code === 'over_email_send_rate_limit') return 'Has realizado varios intentos. Espera unos minutos y vuelve a intentarlo.';
   if (error.status >= 500) return 'No se pudo completar la operación. Revisa la conexión y la configuración del registro.';
+  if (mode === 'recovery') return 'No se pudo enviar el enlace de recuperación. Intenta de nuevo más tarde.';
+  if (mode === 'password') return error.code === 'weak_password'
+    ? 'La contraseña no cumple los requisitos de seguridad configurados en Supabase.'
+    : 'No se pudo actualizar la contraseña. Solicita un nuevo enlace e inténtalo otra vez.';
   return mode === 'login' ? 'El correo o la contraseña no son correctos.' : 'No se pudo crear la cuenta. Verifica tus datos e intenta de nuevo.';
 }
 
-function createAuthRouter(database, auth, { frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173' } = {}) {
+function createAuthRouter(database, auth, {
+  frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173',
+  recoveryCallbackUrl = `http://localhost:${process.env.PORT || 3002}/auth/recovery/callback`,
+} = {}) {
   const router = express.Router();
+  const recoveryPageUrl = new URL('/?auth=recovery', frontendUrl).toString();
+  const recoveryErrorUrl = new URL('/?auth=recovery-error', frontendUrl).toString();
   const attempts = new Map();
   const limitAttempts = (req, res, next) => {
     const key = req.ip;
@@ -40,6 +49,7 @@ function createAuthRouter(database, auth, { frontendUrl = process.env.FRONTEND_U
     if (data.session) {
       account = await auth.accountFor(data.user.id);
       setSessionCookies(res, data.session);
+      clearRecoveryCookie(res);
     }
     res.status(201).json({ account, confirmation_required: !data.session,
       message: data.session ? 'Tu cuenta y tu perfil se crearon correctamente.' : 'Tu cuenta se creó correctamente. Revisa tu correo para confirmarla antes de iniciar sesión.' });
@@ -52,7 +62,37 @@ function createAuthRouter(database, auth, { frontendUrl = process.env.FRONTEND_U
     if (error || !data.session) return res.status(error?.status === 429 ? 429 : error?.status >= 500 ? 503 : 401).json({ error: authMessage(error || {}, 'login') });
     const account = await auth.accountFor(data.user.id);
     setSessionCookies(res, data.session);
+    clearRecoveryCookie(res);
     res.json({ account, message: 'Iniciaste sesión correctamente. ¡Qué bueno verte de nuevo!' });
+  });
+
+  router.post('/recovery/request', limitAttempts, async (req, res) => {
+    const { email, errors } = validateRecoveryEmail(req.body);
+    if (Object.keys(errors).length) return res.status(400).json({ error: 'Ingresa un correo electrónico válido.', errors });
+    const { error } = await auth.requestPasswordRecovery(email, recoveryCallbackUrl);
+    if (error) return res.status(error.status === 429 ? 429 : error.status >= 500 ? 503 : 400).json({ error: authMessage(error, 'recovery') });
+    res.json({ message: 'Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña.' });
+  });
+
+  router.get('/recovery/callback', limitAttempts, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.set('Referrer-Policy', 'no-referrer');
+    const tokenHash = typeof req.query.token_hash === 'string' ? req.query.token_hash : '';
+    const type = typeof req.query.type === 'string' ? req.query.type : '';
+    if (!tokenHash || type !== 'recovery') return res.redirect(303, recoveryErrorUrl);
+    const { data, error } = await auth.verifyPasswordRecovery(tokenHash);
+    if (error || !data.session || !data.user) return res.redirect(303, recoveryErrorUrl);
+    setRecoverySessionCookies(res, data.session);
+    res.redirect(303, recoveryPageUrl);
+  });
+
+  router.post('/recovery/password', auth.requireRecovery, async (req, res) => {
+    const { password, errors } = validateRecoveryPassword(req.body);
+    if (Object.keys(errors).length) return res.status(400).json({ error: 'Revisa los campos de contraseña.', errors });
+    const { error } = await auth.updatePasswordFromSession(req, res, password);
+    if (error) return res.status(error.status === 429 ? 429 : error.status >= 500 ? 503 : 400).json({ error: authMessage(error, 'password') });
+    clearRecoveryCookie(res);
+    res.json({ message: 'Tu contraseña se actualizó correctamente.' });
   });
 
   router.get('/session', async (req, res) => {

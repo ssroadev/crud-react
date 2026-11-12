@@ -33,4 +33,26 @@ function validateAccount(input, mode = 'register') {
   return { data, errors };
 }
 
-module.exports = { validateAccount };
+function validateRecoveryEmail(input) {
+  const value = input && typeof input.email === 'string' ? input.email.trim().toLowerCase() : '';
+  const errors = !value || value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+    ? { email: 'Ingresa un correo electrónico válido.' }
+    : {};
+  return { email: value, errors };
+}
+
+function validateRecoveryPassword(input) {
+  const errors = {};
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return { password: '', errors: { form: 'Completa los campos de contraseña.' } };
+  }
+  const password = typeof input.password === 'string' ? input.password : '';
+  if (password.length < rules.passwordMinLength || password.length > rules.passwordMaxLength
+    || !/\p{Ll}/u.test(password) || !/\p{Lu}/u.test(password) || !/\p{N}/u.test(password) || !/[^\p{L}\p{N}]/u.test(password)) {
+    errors.password = 'La contraseña debe tener entre 8 y 128 caracteres e incluir minúscula, mayúscula, número y carácter especial.';
+  }
+  if (password !== input.confirm_password) errors.confirm_password = 'Las contraseñas no coinciden.';
+  return { password, errors };
+}
+
+module.exports = { validateAccount, validateRecoveryEmail, validateRecoveryPassword };

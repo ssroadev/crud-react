@@ -13,6 +13,8 @@ const app = express();
 const PORT = process.env.PORT || 3002;
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 const frontendOrigin = new URL(frontendUrl).origin;
+const recoveryCallbackUrl = process.env.AUTH_RECOVERY_CALLBACK_URL
+  || `http://localhost:${PORT}/auth/recovery/callback`;
 const auth = createAuthService(supabase);
 
 app.disable('x-powered-by');

@@ -15,7 +15,7 @@ function fixture() {
   };
   let refreshes = 0;
   const session = { access_token: 'valid-access', refresh_token: 'valid-refresh' };
-  const state = { calls: [], signUpError: null, signInError: null, duplicate: false, confirmEmail: false, revoked: false };
+  const state = { calls: [], signUpError: null, signInError: null, recoveryError: null, verifyError: null, updatePasswordError: null, duplicate: false, confirmEmail: false, revoked: false };
   const database = {
     auth: { admin: { signOut: async (token, scope) => { state.revoked = true; state.calls.push({ type: 'signOut', token, scope }); return { error: null }; } } },
     from(table) {
@@ -45,6 +45,10 @@ function fixture() {
   const clientFactory = () => ({ auth: {
     signUp: async (body) => { state.calls.push({ type: 'signUp', body }); return { data: { user: { id: 'auth-ana', identities: state.duplicate ? [] : [{}] }, session: state.confirmEmail ? null : session }, error: state.signUpError }; },
     signInWithPassword: async (body) => { state.calls.push({ type: 'login', body }); return { data: { user: { id: 'auth-ana' }, session: state.signInError ? null : session }, error: state.signInError }; },
+    resetPasswordForEmail: async (email, options) => { state.calls.push({ type: 'recoveryRequest', email, options }); return { data: {}, error: state.recoveryError }; },
+    verifyOtp: async (body) => { state.calls.push({ type: 'verifyOtp', body }); return { data: { user: { id: 'auth-ana' }, session }, error: state.verifyError }; },
+    setSession: async (tokens) => { state.calls.push({ type: 'setSession', tokens }); return { data: { user: { id: 'auth-ana' }, session }, error: null }; },
+    updateUser: async (body) => { state.calls.push({ type: 'updateUser', body }); return { data: { user: { id: 'auth-ana' } }, error: state.updatePasswordError }; },
     getUser: async (token) => ({ data: { user: token === 'valid-access' ? { id: 'auth-ana' } : null }, error: token === 'valid-access' ? null : { status: 401 } }),
     refreshSession: async ({ refresh_token }) => { refreshes++; return { data: { user: { id: 'auth-ana' }, session: refresh_token === 'valid-refresh' ? session : null }, error: refresh_token === 'valid-refresh' ? null : { status: 401 } }; },
   } });
@@ -55,7 +59,7 @@ async function setup(t) {
   const data = fixture();
   const auth = createAuthService(data.database, data.clientFactory);
   const app = express(); app.use(express.json());
-  app.use('/auth', createAuthRouter(data.database, auth));
+  app.use('/auth', createAuthRouter(data.database, auth, { frontendUrl: 'http://localhost:5173', recoveryCallbackUrl: 'http://localhost:3002/auth/recovery/callback' }));
   app.use('/pets', createPetRouter(data.database, auth.requireAccount));
   app.use('/caregivers', createCaregiverRouter(data.database, auth.requireAccount));
   app.use((error, _req, res, _next) => res.status(error.status || 500).json({ error: error.message }));
@@ -63,7 +67,7 @@ async function setup(t) {
   await new Promise((resolve) => server.once('listening', resolve));
   t.after(() => new Promise((resolve) => { server.closeAllConnections(); server.close(resolve); }));
   return { ...data, request: (path, { method = 'GET', body, cookie } = {}) => fetch(`http://127.0.0.1:${server.address().port}${path}`, {
-    method, headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}),
+    method, redirect: 'manual', headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}),
   }) };
 }
 const register = { first_name: 'Ana', last_name: 'Pérez', email: 'ana@example.com', password: 'mascotas123', confirm_password: 'mascotas123', role: 'owner' };
@@ -140,7 +144,7 @@ test('cierra sesión, revoca la sesión de Supabase y borra ambas cookies', asyn
   const api = await setup(t);
   const response = await api.request('/auth/logout', { method: 'POST', cookie });
   assert.equal(response.status, 204); assert.equal(api.state.revoked, true);
-  assert.equal(response.headers.getSetCookie().length, 2);
+  assert.equal(response.headers.getSetCookie().length, 3);
   assert.ok(response.headers.getSetCookie().every((value) => /Expires=Thu, 01 Jan 1970/i.test(value)));
 });
 
@@ -148,7 +152,7 @@ test('borra cookies inválidas sin devolver una cuenta y limita intentos repetid
   const api = await setup(t);
   const response = await api.request('/auth/session', { cookie: 'pawhub_access=invalid; pawhub_refresh=invalid' });
   assert.equal((await response.json()).account, null);
-  assert.equal(response.headers.getSetCookie().length, 2);
+  assert.equal(response.headers.getSetCookie().length, 3);
   for (let i = 0; i < 25; i++) assert.equal((await api.request('/auth/login', { method: 'POST', body: {} })).status, 400);
   assert.equal((await api.request('/auth/login', { method: 'POST', body: {} })).status, 429);
 });
@@ -159,4 +163,47 @@ test('el cierre de sesión renueva un acceso expirado antes de revocar la sesió
   assert.equal(response.status, 204);
   assert.equal(api.refreshes(), 1);
   assert.equal(api.state.calls.find((call) => call.type === 'signOut').token, 'valid-access');
+});
+
+test('solicita recuperación con un mensaje uniforme y callback fijado al backend', async (t) => {
+  const api = await setup(t);
+  const response = await api.request('/auth/recovery/request', { method: 'POST', body: { email: ' ANA@example.com ' } });
+  assert.equal(response.status, 200);
+  assert.match((await response.json()).message, /Si el correo está registrado/);
+  assert.deepEqual(api.state.calls[0], {
+    type: 'recoveryRequest', email: 'ana@example.com',
+    options: { redirectTo: 'http://localhost:3002/auth/recovery/callback' },
+  });
+});
+
+test('verifica token_hash recovery en el backend, establece HttpOnly cookies y redirige al frontend', async (t) => {
+  const api = await setup(t);
+  const response = await api.request('/auth/recovery/callback?token_hash=one-time-hash&type=recovery');
+  assert.equal(response.status, 303);
+  assert.equal(response.headers.get('location'), 'http://localhost:5173/?auth=recovery');
+  assert.ok(response.headers.getSetCookie().every((value) => /HttpOnly/i.test(value)));
+  assert.equal(api.state.calls[0].type, 'verifyOtp');
+  assert.deepEqual(api.state.calls[0].body, { token_hash: 'one-time-hash', type: 'recovery' });
+});
+
+test('rechaza callbacks con tipo incorrecto o token vencido', async (t) => {
+  const api = await setup(t);
+  const wrongType = await api.request('/auth/recovery/callback?token_hash=one-time-hash&type=email');
+  assert.equal(wrongType.headers.get('location'), 'http://localhost:5173/?auth=recovery-error');
+  assert.equal(api.state.calls.length, 0);
+  api.state.verifyError = { code: 'otp_expired', status: 403 };
+  const expired = await api.request('/auth/recovery/callback?token_hash=expired-hash&type=recovery');
+  assert.equal(expired.headers.get('location'), 'http://localhost:5173/?auth=recovery-error');
+});
+
+test('actualiza contraseña solo con cookie de recuperación y elimina el permiso efímero', async (t) => {
+  const api = await setup(t);
+  const body = { password: 'Mascotas123!', confirm_password: 'Mascotas123!' };
+  const denied = await api.request('/auth/recovery/password', { method: 'POST', cookie, body });
+  assert.equal(denied.status, 401);
+  const response = await api.request('/auth/recovery/password', { method: 'POST', cookie: `${cookie}; pawhub_recovery=1`, body });
+  assert.equal(response.status, 200);
+  assert.match((await response.json()).message, /actualizó correctamente/);
+  assert.deepEqual(api.state.calls.find((call) => call.type === 'updateUser').body, { password: body.password });
+  assert.ok(response.headers.getSetCookie().some((value) => /pawhub_recovery=;/i.test(value)));
 });

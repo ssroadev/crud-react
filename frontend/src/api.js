@@ -34,6 +34,8 @@ export const getOwners = () => request('/owners');
 export const getSession = () => request('/auth/session');
 export const registerAccount = (data) => request('/auth/register', { method: 'POST', body: JSON.stringify(data) });
 export const loginAccount = (data) => request('/auth/login', { method: 'POST', body: JSON.stringify(data) });
+export const requestPasswordRecovery = (email) => request('/auth/recovery/request', { method: 'POST', body: JSON.stringify({ email }) });
+export const updatePasswordFromRecovery = (data) => request('/auth/recovery/password', { method: 'POST', body: JSON.stringify(data) });
 export const logoutAccount = () => request('/auth/logout', { method: 'POST', body: '{}' });
 export const updateAccount = (data) => request('/auth/profile', { method: 'PUT', body: JSON.stringify(data) });
 export const createBooking = (data) => request('/bookings', { method: 'POST', body: JSON.stringify(data) });

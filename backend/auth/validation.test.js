@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { validateAccount } = require('./validation');
+const { validateAccount, validateRecoveryEmail, validateRecoveryPassword } = require('./validation');
 const registration = { first_name: ' Ana ', last_name: ' Pérez ', email: ' ANA@EXAMPLE.COM ', phone: '+57 300 123 4567', password: 'mascotas123', confirm_password: 'mascotas123', role: 'owner' };
 
 test('valida y normaliza el registro sin modificar la contraseña', () => {
@@ -35,4 +35,15 @@ test('el perfil no permite cambiar correo, rol o identidad mediante asignación 
   assert.equal(data.auth_user_id, undefined);
   assert.equal(data.id, undefined);
   assert.ok(validateAccount({ ...registration, bio: 'a'.repeat(1001) }, 'profile').errors.bio);
+});
+
+test('valida el correo de recuperación sin requerir datos de registro', () => {
+  assert.deepEqual(validateRecoveryEmail({ email: ' ANA@example.com ' }), { email: 'ana@example.com', errors: {} });
+  assert.ok(validateRecoveryEmail({ email: 'not-an-email' }).errors.email);
+});
+
+test('valida contraseña de recuperación, requisitos de seguridad y confirmación', () => {
+  assert.deepEqual(validateRecoveryPassword({ password: 'Mascotas123!', confirm_password: 'Mascotas123!' }).errors, {});
+  assert.ok(validateRecoveryPassword({ password: 'mascotas123', confirm_password: 'mascotas123' }).errors.password);
+  assert.ok(validateRecoveryPassword({ password: 'Mascotas123!', confirm_password: 'Mascotas123?' }).errors.confirm_password);
 });
