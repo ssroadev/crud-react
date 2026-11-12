@@ -8,7 +8,7 @@ function database() {
   const tables = {
     profiles: [{ id: 1, id_user: 101, first_name: 'Ana', last_name: 'Pérez' }],
     caregiver_profiles: [],
-    caregivers: [], bookings: [], reviews: [],
+    caregivers: [], bookings: [], reviews: [], pets: [],
   };
   return {
     tables,
@@ -87,6 +87,61 @@ test('crea y recupera borradores sin exponerlos en las rutas públicas', async (
   assert.equal((await (await api.get('/profile/1')).json()).bio, 'En preparación');
   assert.deepEqual(await (await api.get()).json(), []);
   assert.equal((await api.get(`/${saved.id}`)).status, 404);
+});
+
+test('recomendaciones HTTP: consulta pública, validación, mascota propia y privacidad de mascotas ajenas', async (t) => {
+  const api = await setup(t);
+  api.db.tables.profiles.push({ id: 2, id_user: 202, first_name: 'Laura', last_name: 'Gómez' });
+  api.db.tables.caregiver_profiles.push({ ...complete, id: 'recommended', profile_id: 2, specialties: ['Cachorros'] });
+  api.db.tables.pets.push({ id: 10, id_owner: 101, name: 'Luna', size: 'pequeno', birth_date: null },
+    { id: 11, id_owner: 999, name: 'Mascota ajena', notes: 'Privadas' });
+  let response = await api.get('/recommendations?species=Perros&needs=Cachorros');
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('Cache-Control'), /no-store/);
+  let result = await response.json();
+  assert.equal(result.recommendations.length, 1);
+  assert.equal(result.context.pet, null);
+  api.db.tables.caregiver_profiles.push({ ...complete, id: 'own-profile', profile_id: 1 });
+  response = await api.get('/recommendations?pet_id=10&species=Perros');
+  assert.equal(response.status, 200);
+  result = await response.json();
+  assert.equal(result.context.pet.name, 'Luna');
+  assert.equal(result.recommendations.length, 1);
+  assert.equal(result.recommendations[0].id, 'recommended');
+  assert.equal((await api.get('/recommendations?pet_id=11')).status, 404);
+  assert.equal((await api.get('/recommendations?pet_id=12')).status, 404);
+  assert.equal((await api.get('/recommendations?needs=Inexistente')).status, 400);
+  assert.equal((await api.get('/recommendations?latitude=4')).status, 400);
+});
+
+test('recomendaciones HTTP: requiere sesión para consultar una mascota guardada', async (t) => {
+  const app = express();
+  app.use('/caregivers', createCaregiverRouter(database()));
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise((resolve) => server.once('listening', resolve));
+  t.after(() => new Promise((resolve) => { server.closeAllConnections(); server.close(resolve); }));
+  const url = `http://127.0.0.1:${server.address().port}/caregivers/recommendations`;
+  assert.equal((await fetch(url)).status, 200);
+  assert.equal((await fetch(`${url}?pet_id=10`)).status, 401);
+});
+
+test('recomendaciones HTTP: consulta reservas reales y reseñas antes de decidir compatibilidad', async (t) => {
+  const api = await setup(t);
+  api.db.tables.profiles.push({ id: 2, id_user: 202, first_name: 'Laura', last_name: 'Gómez' });
+  api.db.tables.caregiver_profiles.push({ ...complete, id: 'busy', profile_id: 2, specialties: [] });
+  api.db.tables.caregivers.push({ id: 77, id_user: 202, active: true });
+  api.db.tables.bookings.push({ id: 8, id_caregiver: 77, start_at: '2026-11-16T10:00:00', end_at: '2026-11-16T11:00:00', status: 'confirmed' },
+    { id: 9, id_caregiver: 77, status: 'completed' });
+  api.db.tables.reviews.push({ id_booking: 9, rating: 5 });
+  const response = await api.get('/recommendations?species=Perros&date=2026-11-16&start_time=09:00&end_time=11:00');
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.recommendations.length, 0);
+  assert.equal(result.alternatives.length, 1);
+  assert.equal(result.alternatives[0].rating, 5);
+  assert.equal(result.alternatives[0].review_count, 1);
+  assert.ok(result.alternatives[0].recommendation.warnings.includes('Sin disponibilidad en ese horario'));
+  assert.equal('busy_bookings' in result.alternatives[0], false);
 });
 
 test('publica, actualiza sin duplicar y retira un perfil al guardarlo como borrador', async (t) => {

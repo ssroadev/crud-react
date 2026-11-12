@@ -25,7 +25,8 @@ async function request(path, options = {}) {
   return body;
 }
 
-export const getPets = () => request('/pets');
+export const getPets = (options = {}) => request('/pets', options);
+export const getPetBreeds = (options = {}) => request('/pets/breeds', options);
 export const createPet = (pet) =>request('/pets', { method: 'POST', body: JSON.stringify(pet) });
 export const updatePet = (id, pet) => request(`/pets/${id}`, { method: 'PUT', body: JSON.stringify(pet) });
 export const deletePet = (id) => request(`/pets/${id}`, { method: 'DELETE' });
@@ -51,6 +52,10 @@ export const getCaregivers = (filters = {}, options = {}) => {
   return request(`/caregivers?${query}`, options);
 };
 export const getCaregiver = (id, options = {}) => request(`/caregivers/${encodeURIComponent(id)}`, options);
+export const getCaregiverRecommendations = (filters = {}, options = {}) => {
+  const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value !== '' && value !== null && value !== undefined));
+  return request(`/caregivers/recommendations?${query}`, options);
+};
 export const findLocations = (query) => request(`/locations?q=${encodeURIComponent(query)}`);
 export const getCaregiverProfile = (profileId) => request(`/caregivers/profile/${encodeURIComponent(profileId)}`);
 export const saveCaregiverProfile = (profileId, profile) => request(`/caregivers/profile/${encodeURIComponent(profileId)}`, {

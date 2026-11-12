@@ -79,10 +79,10 @@ export default function App() {
   return <>
     <header className="site-header">
       <HomeLink className="brand home-brand" />
-      <nav aria-label="Navegación principal"><a className="button-link" href="#">Cuidadores</a><a className="button-link" href="#pets">Mis mascotas</a><a className="button-link" href="#requests">Mis solicitudes</a></nav>
+      <nav aria-label="Navegación principal"><a className="button-link" aria-current={page === 'caregivers' ? 'page' : undefined} href="#">Cuidadores</a><a className="button-link" aria-current={page === 'pets' ? 'page' : undefined} href="#pets">Mis mascotas</a><a className="button-link" aria-current={page === 'requests' ? 'page' : undefined} href="#requests">Mis solicitudes</a></nav>
       <div className="account-nav">{account ? <><a href="#account" className="account-name">Hola, {account.profile.first_name}</a><button className="secondary" disabled={loggingOut} onClick={logout}>{loggingOut ? 'Cerrando…' : 'Cerrar sesión'}</button></> : <><a href="#login">Iniciar sesión</a><a className="nav-register" href="#register">Crear cuenta</a></>}</div>
     </header>
-    <main className={['caregivers', 'requests', 'chat'].includes(page) ? 'wide-main' : ''}>
+    <main className={page === 'pets' ? 'pets-main' : ['caregivers', 'requests', 'chat'].includes(page) ? 'wide-main' : ''}>
       {error && <p className="error" role="alert">{error}</p>}
       {notice && account && <p className="success" role="status">{notice}</p>}
       {privatePage && loading ? <p role="status">Comprobando tu sesión…</p> : privatePage && !account ? <section className="auth-required"><h2>Este espacio es para ti y tus mascotas</h2><p className="muted">Inicia sesión para acceder a tu perfil y administrar tus mascotas.</p><a className="button-link" href="#login">Iniciar sesión</a><p>¿Aún no tienes cuenta? <a href="#register">Regístrate en PawHub</a></p></section> : <>

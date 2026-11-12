@@ -4,10 +4,45 @@ Aplicación React + Express + Supabase para administrar mascotas y perfiles prof
 
 ## Preparación
 
-1. En Supabase, ejecuta las migraciones pendientes de `backend/migrations` en orden: `001_caregiver_profiles.sql`, `002_caregiver_search.sql`, `003_registration_auth.sql`, `004_booking_requests.sql`, `005_caregiver_management.sql` y `006_booking_chat.sql`. Si ya ejecutaste las cinco primeras, solo necesitas la sexta, que añade las conversaciones privadas. Usa las migraciones, no el esquema exportado de contexto.
+1. En Supabase, ejecuta las migraciones pendientes de `backend/migrations` en orden: `001_caregiver_profiles.sql`, `002_caregiver_search.sql`, `003_registration_auth.sql`, `004_booking_requests.sql`, `005_caregiver_management.sql`, `006_booking_chat.sql` y `007_pet_breeds.sql`. La sexta añade las conversaciones privadas y la séptima crea y puebla el catálogo de razas. Si ya tienes las seis primeras, solo ejecuta la séptima. Usa las migraciones, no el esquema exportado de contexto.
 2. Configura `backend/.env` con `SUPABASE_URL` y `SUPABASE_KEY`. Esta última debe ser una clave de servidor secret (`sb_secret_...`) o la compatible `service_role`; nunca la incluyas en el frontend. El puerto predeterminado es `3002`; puedes cambiarlo con `PORT`.
 3. Ejecuta `npm ci` y `npm run dev` desde `backend`. El modo de desarrollo recarga el servidor al cambiar archivos del backend, `.env` o los catálogos de `shared`.
 4. Ejecuta `npm ci` y `npm run dev` desde `frontend`. Abre `http://localhost:5173`. El frontend usa `http://localhost:3002`; configura `VITE_API_URL` si el backend usa otra URL.
+
+## Formularios y razas de mascotas
+
+Los formularios comparten campos con bordes suaves, estados de foco y error y selectores con menús propios. Los menús largos incluyen buscador; se puede navegar con flechas, elegir con Enter, salir con Tab y cerrar con Escape o al pulsar fuera. Los menús se ajustan a la pantalla y aparecen sobre las tarjetas para evitar recortes. Búsqueda, solicitudes y perfil profesional utilizan el mismo componente `Select`.
+
+**Mis mascotas** presenta el formulario y las mascotas registradas en dos columnas; en móvil se apilan. El tamaño se elige con tarjetas de selección única. El formulario muestra errores por campo, evita envíos repetidos y conserva los datos cuando falla el guardado.
+
+La migración `backend/migrations/007_pet_breeds.sql` crea `public.pet_breeds` con 61 opciones iniciales de perros, gatos y conejos. Se puede repetir sin duplicarlas y conserva las opciones que el administrador haya desactivado. El catálogo se consulta desde Express mediante `GET /pets/breeds`; solo devuelve filas con `active=true`. RLS impide el acceso directo con claves públicas; el backend usa su clave de servidor. Para agregar o desactivar razas, administra `id`, `species`, `name` y `active` en esa tabla.
+
+La selección de raza permite buscar sin tildes y agrupa las opciones por especie. **Otra · indicar cuál** permanece disponible incluso cuando no hay coincidencias; al elegirla aparece **¿Cuál es su raza?**, obligatorio para esa opción. La raza puede dejarse sin especificar. Si falla la consulta del catálogo, se ofrece reintentar o guardar con Otra.
+
+Al crear o editar, el frontend envía `breed_id` para una opción del catálogo o `breed_other` para una raza escrita. El backend obtiene el nombre de una opción activa desde la base; rechaza IDs inexistentes, razas inactivas y el envío simultáneo de ambas opciones. El nombre se guarda en `pets.breed`, conservando el modelo y los registros anteriores. Al editar una raza antigua ausente del catálogo se muestra Otra y se mantiene su texto. También se validan nombre, tamaño, fechas reales no futuras y notas de hasta 2000 caracteres. Se conserva la comprobación de propiedad de las mascotas.
+
+Para activar el catálogo en Supabase, ejecuta el SQL de la séptima migración en su editor SQL y reinicia el backend si aún ejecuta una versión anterior. `SUPABASE_KEY` permite consultar y escribir filas por API, pero no ejecutar migraciones DDL. La migración se verifica en PostgreSQL local mediante PGlite durante las pruebas; esto no la aplica al Supabase real.
+
+## Cuidadores de prueba
+
+Desde `backend`, ejecuta `npm run seed:caregivers` para cargar ocho cuidadores ficticios en el Supabase configurado en `backend/.env`. Requiere las migraciones de preparación y una clave de servidor. El comando se rechaza si `NODE_ENV=production`.
+
+La carga crea cuentas de Supabase Auth con rol `caregiver` y correo confirmado, y publica sus perfiles con servicios, tarifas en COP, coordenadas y horarios variados. Hay cuatro cuidadores en Bogotá, dos en Medellín y dos en Cali; se pueden consultar en **Encontrar cuidador** e iniciar sesión para administrar sus perfiles o responder solicitudes.
+
+| Nombre | Correo de acceso | Zona |
+| --- | --- | --- |
+| Ana Torres | `ana.cuidadora@example.com` | Chapinero, Bogotá |
+| Carlos Ramírez | `carlos.cuidador@example.com` | Usaquén, Bogotá |
+| Laura Gómez | `laura.cuidadora@example.com` | Teusaquillo, Bogotá |
+| Diego Castro | `diego.cuidador@example.com` | Suba, Bogotá |
+| Sofía Martínez | `sofia.cuidadora@example.com` | Laureles, Medellín |
+| Andrés Rojas | `andres.cuidador@example.com` | El Poblado, Medellín |
+| Valentina Moreno | `valentina.cuidadora@example.com` | San Fernando, Cali |
+| Mateo Vargas | `mateo.cuidador@example.com` | Ciudad Jardín, Cali |
+
+La contraseña inicial de todas estas cuentas es `PawHubDemo2026!`; puedes definir `SEED_CAREGIVER_PASSWORD` en `backend/.env` antes de crearlas para usar otra. Los correos son ficticios y la carga administrativa no envía mensajes de confirmación.
+
+El comando puede repetirse: conserva las contraseñas y los perfiles existentes, y completa los perfiles que falten. Solo reutiliza cuentas marcadas como pertenecientes a esta carga; si un correo ya pertenece a otra cuenta, se detiene antes de crear datos. Si falla a mitad del proceso, corrige la causa y repite el comando. Los datos están en `backend/seeds/caregivers.js`. Para probar **Crear cuenta**, usa un correo distinto de los ya cargados; las cuentas de esta tabla sirven para **Iniciar sesión**.
 
 ## Registro e inicio de sesión
 
@@ -131,6 +166,20 @@ Con una sesión de cuidador, entra en **Cuidadores → Administrar mi perfil pro
 Para publicar son obligatorios la descripción, experiencia previa, años de experiencia (0–100), zona de cobertura, al menos una especie, un servicio con tarifa válida y un horario. Las especialidades y hasta seis fotografías por URL pública son opcionales. Las tarifas se expresan en COP por hora, día, noche, paseo o visita. Los horarios son semanales, en hora de Colombia, y no pueden superponerse ni cruzar la medianoche dentro de una misma franja.
 
 La vista previa refleja los cambios antes de guardarlos. **Encontrar cuidador** muestra únicamente perfiles publicados. Guardar un perfil publicado como borrador lo retira de esa vista. Las validaciones del servidor también se aplican cuando se llama a la API directamente; un guardado inválido conserva la publicación anterior.
+
+## Recomendaciones personalizadas
+
+La página inicial reúne los criterios en un panel lateral y las recomendaciones en tarjetas con motivos de compatibilidad, tarifas y accesos a **Ver perfil** y **Solicitar servicio**. En móvil, **Personalizar mi búsqueda** despliega los filtros. La presentación comparte una paleta de turquesa, crema y neutros, navegación con la sección actual y estados de carga, error y búsqueda sin coincidencias.
+
+El dueño puede seleccionar una mascota propia, confirmar su especie, marcar varias necesidades del catálogo y elegir servicio, ubicación, presupuesto y horario. Como `pets` no almacena especie, se confirma en cada búsqueda; no se adivina por la raza ni se interpretan notas como diagnósticos. Si existe fecha de nacimiento, para perros y gatos menores de un año se considera la especialidad **Cachorros**; desde siete años en perros y diez en gatos se considera **Mascotas mayores**. El resultado explica la necesidad añadida por edad. El tamaño se muestra como contexto: no se atribuye compatibilidad por tamaño porque los cuidadores no declaran tamaños admitidos.
+
+Solo se consideran perfiles publicados y activos que atiendan la especie y ofrezcan el servicio solicitado. Las recomendaciones cumplen todas las necesidades, distancia, presupuesto y disponibilidad indicados. La franja debe estar cubierta por el horario semanal y libre de solicitudes pendientes y reservas confirmadas. Sin fecha, no se afirma disponibilidad; sin ubicación, no se afirma cercanía. Si un cuidador incumple alguno de estos criterios, puede consultarse en **Otros perfiles**, con avisos específicos, sin presentarse como coincidencia completa.
+
+El orden predeterminado es determinista: especie aporta 30 puntos, servicio 25, cada especialidad coincidente 25, disponibilidad comprobada 30 y presupuesto compatible 10. La proximidad aporta hasta 20 puntos según la distancia dentro del radio; las valoraciones reales aportan hasta cinco puntos complementarios. Las reseñas nunca compensan una incompatibilidad para pasar a la lista de recomendaciones. A igualdad de puntuación se usa el número de reseñas y luego el ID para mantener un orden estable. No se muestran porcentajes de probabilidad ni calificaciones inventadas. Se puede cambiar el orden a cercanía, calificación o tarifa; la interfaz recuerda comparar una misma unidad para las tarifas.
+
+Si hay menos de tres coincidencias en una búsqueda personalizada, se informa y se ofrecen acciones para ampliar el radio, buscar sin horario, consultar otros perfiles o explorar sin filtros. Ampliar distancia o quitar horario conserva la mascota, especie, servicio, necesidades y presupuesto ya enviados. Al visitar un perfil y volver se mantiene la búsqueda; el formulario de solicitud recibe la mascota, servicio y horario seleccionados. La solicitud sigue validándose en el servidor y requiere aceptación del cuidador.
+
+`GET /caregivers/recommendations` devuelve `recommendations`, `alternatives`, `insufficient_matches` y `context`. Acepta los filtros de búsqueda y agrega `needs` (especialidades separadas por comas) y `pet_id` opcional. Usar `pet_id` requiere sesión: se consulta exclusivamente una mascota cuyo `id_owner` pertenece a esa sesión; una mascota ajena o inexistente devuelve 404 y sin sesión devuelve 401. Las respuestas no se almacenan en caché ni incluyen notas de mascotas o reservas privadas. No requiere migraciones nuevas ni servicios externos de IA.
 
 ## Buscar cuidadores
 

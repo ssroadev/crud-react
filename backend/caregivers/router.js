@@ -2,6 +2,7 @@ const express = require('express');
 const { validateCaregiver } = require('./validation');
 const { parseSearch, filterCaregivers } = require('./search');
 const { readAll, enrichCaregivers } = require('./directory');
+const { parseRecommendations, recommendCaregivers } = require('./recommendations');
 
 const selection = '*, profile:profiles(first_name,last_name,id_user)';
 
@@ -27,6 +28,30 @@ function createCaregiverRouter(supabase, requireAccount = (_req, res) => res.sta
         .eq('status', 'published').order('id'));
       const profiles = await enrichCaregivers(supabase, data, filters);
       res.json(filterCaregivers(profiles, filters));
+    } catch (error) { return databaseError(res, error); }
+  });
+
+  router.get('/recommendations', (req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    if (req.query.pet_id !== undefined && req.query.pet_id !== '') return requireAccount(req, res, next);
+    next();
+  }, async (req, res) => {
+    const { filters, errors } = parseRecommendations(req.query);
+    if (Object.keys(errors).length) return res.status(400).json({ error: 'Revisa los criterios de recomendación.', errors });
+    try {
+      let pet = null;
+      if (filters.pet_id) {
+        const result = await supabase.from('pets').select('id,name,size,birth_date')
+          .eq('id', filters.pet_id).eq('id_owner', req.account.id).maybeSingle();
+        if (result.error) throw result.error;
+        if (!result.data) return res.status(404).json({ error: 'No se encontró esa mascota en tu cuenta.' });
+        pet = result.data;
+      }
+      const rows = await readAll(() => supabase.from('caregiver_profiles').select(selection)
+        .eq('status', 'published').order('id'));
+      const profiles = await enrichCaregivers(supabase, rows, filters);
+      res.json(recommendCaregivers(profiles.filter((profile) => !req.account ||
+        String(profile.profile_id) !== String(req.account.profile.id)), filters, pet));
     } catch (error) { return databaseError(res, error); }
   });
 

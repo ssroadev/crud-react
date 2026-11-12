@@ -1,8 +1,8 @@
 :root {
-  --ink: #1f2a2e;
-  --muted: #525f60;
-  --paper: #f5f7f7;
-  --line: #d3d9da;
+  --ink: #26383d;
+  --muted: #637074;
+  --paper: #f7f6f2;
+  --line: #e1e4e2;
   --accent: #087f8c;
   --accent-hover: #066872;
   --accent-soft: #e8f6f7;
@@ -16,6 +16,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; }
 main { max-width: 640px; margin: 0 auto; padding: 2rem 1rem 4rem; }
 h1 { margin: 0 0 1.5rem; font-size: 2rem; }
@@ -45,6 +46,8 @@ button {
 button.secondary { background: transparent; color: var(--accent); }
 button.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:not(:disabled):hover { filter: brightness(0.97); }
+input, select, textarea { max-width: 100%; }
 
 .form-actions { display: flex; gap: 0.5rem; }
 

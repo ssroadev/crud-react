@@ -1,3 +1,4 @@
+import Select from './Select';
 import { useEffect, useState } from 'react';
 import { completeBooking, getBookings, markBookingRead, reviewBooking } from '../api';
 import statuses from '../../../shared/booking-statuses.json';
@@ -146,10 +147,10 @@ export default function BookingRequests({ account }) {
     <div className="request-filter-panel">
       <div className="request-filters">
         <label>Buscar solicitud<input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Mascota, dueño, servicio o número" type="search" /></label>
-        <label>Estado<select value={mode === 'agenda' ? 'confirmed' : status} disabled={mode === 'agenda'} onChange={(event) => { setStatus(event.target.value); setPage(1); }}><option value="all">Todos los estados</option>{Object.entries(received ? caregiverLabels : statuses).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+        <label>Estado<Select value={mode === 'agenda' ? 'confirmed' : status} disabled={mode === 'agenda'} onChange={(event) => { setStatus(event.target.value); setPage(1); }}><option value="all">Todos los estados</option>{Object.entries(received ? caregiverLabels : statuses).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></label>
         <label>Desde<input type="date" value={from} aria-invalid={Boolean(invalidRange)} onChange={(event) => { setFrom(event.target.value); setPage(1); }} /></label>
         <label>Hasta<input type="date" value={to} aria-invalid={Boolean(invalidRange)} onChange={(event) => { setTo(event.target.value); setPage(1); }} /></label>
-        <label>Ordenar<select value={sort} onChange={(event) => { setSort(event.target.value); setPage(1); }}><option value="newest">{received ? 'Últimas solicitudes' : 'Últimas actualizaciones'}</option><option value="soonest">Fecha de servicio: primero la más cercana</option><option value="latest">Fecha de servicio: primero la más lejana</option></select></label>
+        <label>Ordenar<Select value={sort} onChange={(event) => { setSort(event.target.value); setPage(1); }}><option value="newest">{received ? 'Últimas solicitudes' : 'Últimas actualizaciones'}</option><option value="soonest">Fecha de servicio: primero la más cercana</option><option value="latest">Fecha de servicio: primero la más lejana</option></Select></label>
       </div>
       <div className="date-shortcuts"><button className="secondary" onClick={() => dateShortcut(0)}>Hoy</button><button className="secondary" onClick={() => dateShortcut(6)}>Próximos 7 días</button><button className="secondary" onClick={clear}>Limpiar filtros</button><span className="muted small">Hora de Colombia · Actualización cada 30 s</span></div>
       {invalidRange && <p className="field-error" role="alert">La fecha inicial no puede ser posterior a la final.</p>}

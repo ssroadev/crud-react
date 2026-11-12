@@ -1,34 +1,41 @@
-import { useEffect, useState } from 'react';
+import Select from './Select';
+import { useEffect, useRef, useState } from 'react';
 import options from '../../../shared/caregiver-options.json';
-import { getCaregivers, getCaregiver } from '../api';
+import { getCaregiverRecommendations, getCaregiver, getPets } from '../api';
 import LocationPicker from './LocationPicker';
 import CaregiverCard from './CaregiverCard';
 import BookingForm from './BookingForm';
+import { todayInBogota } from '../booking-utils';
 import '../bookings.css';
+import '../directory.css';
 
-const initialFilters = { service: '', species: '', specialty: '', min_price: '', max_price: '', rate_unit: '', date: '', start_time: '', end_time: '', sort: 'distance', radius_km: '10' };
-const money = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 2 });
+const initialFilters = { pet_id: '', service: '', species: '', needs: [], min_price: '', max_price: '', rate_unit: '', date: '', start_time: '', end_time: '', radius_km: '10' };
+const emptyResults = { recommendations: [], alternatives: [], context: {}, insufficient_matches: false };
+const money = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 const selectedFromHash = () => {
   const match = window.location.hash.match(/^#cuidador\/([^/]+)$/);
   try { return match ? decodeURIComponent(match[1]) : ''; } catch { return ''; }
 };
 
-function ResultCard({ caregiver }) {
+function PawIcon() {
+  return <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><ellipse cx="7" cy="11" rx="3" ry="4" transform="rotate(-25 7 11)" /><ellipse cx="14" cy="7" rx="3" ry="4" /><ellipse cx="22" cy="8" rx="3" ry="4" transform="rotate(20 22 8)" /><ellipse cx="27" cy="15" rx="3" ry="4" transform="rotate(30 27 15)" /><path d="M9 20c3-2 3-7 8-6s4 5 7 8c4 5-2 8-6 6-3-1-5 1-8 0-4-1-4-5-1-8Z" /></svg>;
+}
+
+function ResultCard({ caregiver, personalized, onRequest }) {
   const name = [caregiver.profile?.first_name, caregiver.profile?.last_name].filter(Boolean).join(' ');
-  return <article className="caregiver-card result-card">
-    <div className="card-heading">
-      <div className="avatar" aria-hidden="true">{name[0] || 'P'}</div>
-      <div><h3>{name}</h3><p className="muted">{caregiver.zone}</p></div>
-    </div>
-    <div className="result-meta">
-      <span>{caregiver.distance_km !== null ? `A ${caregiver.distance_km.toLocaleString('es-CO')} km aprox.` : 'Distancia sin calcular'}</span>
-      <span>{caregiver.rating !== null ? `★ ${caregiver.rating.toLocaleString('es-CO')} · ${caregiver.review_count} ${caregiver.review_count === 1 ? 'reseña' : 'reseñas'}` : 'Sin calificaciones'}</span>
-    </div>
+  const initials = [caregiver.profile?.first_name?.[0], caregiver.profile?.last_name?.[0]].filter(Boolean).join('');
+  const { reasons, warnings } = caregiver.recommendation;
+  const link = `#cuidador/${encodeURIComponent(caregiver.id)}`;
+  return <article className={`caregiver-card result-card ${warnings.length ? 'alternative-card' : ''}`}>
+    <div className="result-card-top"><span className={`match-label ${warnings.length ? 'partial' : ''}`}>{warnings.length ? 'Opción para explorar' : personalized ? 'Coincide con tu búsqueda' : `${caregiver.years_experience} ${caregiver.years_experience === 1 ? 'año' : 'años'} de experiencia`}</span><span className="result-rating">{caregiver.rating !== null ? <>★ {caregiver.rating.toLocaleString('es-CO')} <small>({caregiver.review_count})</small></> : <small>Sin reseñas aún</small>}</span></div>
+    <div className="card-heading"><div className="avatar" aria-hidden="true">{initials || 'P'}</div><div><h3>{name}</h3><p className="muted">{caregiver.zone}</p></div></div>
     <p className="result-bio">{caregiver.bio}</p>
-    <div className="tags">{caregiver.species.map((species) => <span key={species}>{species}</span>)}</div>
-    {!!caregiver.specialties.length && <p className="muted small">{caregiver.specialties.join(' · ')}</p>}
-    <ul className="rate-list">{caregiver.matching_services.map((service) => <li key={service.name}><span>{service.name}</span><strong>{money.format(service.rate)} / {service.unit}</strong></li>)}</ul>
-    <a className="button-link" href={`#cuidador/${encodeURIComponent(caregiver.id)}`}>Ver perfil completo <span aria-hidden="true">→</span></a>
+    <div className="tags">{caregiver.species.map((species) => <span key={species}>{species}</span>)}{caregiver.distance_km !== null && <span>{caregiver.distance_km.toLocaleString('es-CO')} km aprox.</span>}</div>
+    {!!reasons.length && <div className="match-reasons"><p>¿Por qué encaja?</p><ul>{reasons.map((reason) => <li key={reason}><span aria-hidden="true">✓</span>{reason}</li>)}</ul></div>}
+    {!!warnings.length && <ul className="match-warnings">{warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>}
+    {!personalized && !!caregiver.specialties.length && <p className="result-specialties">{caregiver.specialties.join(' · ')}</p>}
+    <ul className="rate-list">{caregiver.matching_services.map((service) => <li key={service.name}><span>{service.name}</span><strong>{money.format(service.rate)} <small>/ {service.unit}</small></strong></li>)}</ul>
+    <div className="result-actions"><a className="button-link" href={link}>Ver perfil</a><a className="button-link primary-link" href={link} onClick={onRequest}>Solicitar servicio <span aria-hidden="true">↗</span></a></div>
   </article>;
 }
 
@@ -38,16 +45,25 @@ export default function CaregiverDirectory({ revision = 0, account }) {
   const [locationKey, setLocationKey] = useState(0);
   const [applied, setApplied] = useState({});
   const [appliedLabel, setAppliedLabel] = useState('');
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState(emptyResults);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [view, setView] = useState('recommendations');
+  const [sort, setSort] = useState('recommended');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [pets, setPets] = useState([]);
+  const [petError, setPetError] = useState('');
+  const [petsRevision, setPetsRevision] = useState(0);
   const [selectedId, setSelectedId] = useState(selectedFromHash);
   const [detail, setDetail] = useState({ loading: true, profile: null, error: '' });
+  const requestIntent = useRef(false);
+  const booking = useRef(null);
+  const resultHeading = useRef(null);
 
   useEffect(() => {
     const controller = new AbortController();
-    getCaregivers(applied, { signal: controller.signal }).then((data) => {
+    getCaregiverRecommendations(applied, { signal: controller.signal }).then((data) => {
       if (!controller.signal.aborted) { setResults(data); setError(''); setFieldErrors({}); }
     }).catch((err) => {
       if (!controller.signal.aborted) { setError(err.message); setFieldErrors(err.fields || {}); }
@@ -56,10 +72,19 @@ export default function CaregiverDirectory({ revision = 0, account }) {
   }, [applied, revision]);
 
   useEffect(() => {
-    const handleHash = () => {
-      setSelectedId(selectedFromHash());
-      setDetail({ loading: true, profile: null, error: '' });
-    };
+    if (!account) return;
+    const controller = new AbortController();
+    const load = () => getPets({ signal: controller.signal }).then((rows) => {
+      if (!controller.signal.aborted) { setPets(rows); setPetError(''); }
+    }).catch((err) => { if (!controller.signal.aborted) setPetError(err.message); });
+    load();
+    window.addEventListener('focus', load);
+    window.addEventListener('hashchange', load);
+    return () => { controller.abort(); window.removeEventListener('focus', load); window.removeEventListener('hashchange', load); };
+  }, [account, petsRevision]);
+
+  useEffect(() => {
+    const handleHash = () => { setSelectedId(selectedFromHash()); setDetail({ loading: true, profile: null, error: '' }); };
     window.addEventListener('hashchange', handleHash);
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
@@ -75,55 +100,88 @@ export default function CaregiverDirectory({ revision = 0, account }) {
     return () => controller.abort();
   }, [selectedId, revision]);
 
+  useEffect(() => {
+    if (selectedId && !detail.loading && requestIntent.current) {
+      booking.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      requestIntent.current = false;
+    }
+  }, [selectedId, detail.loading]);
+
   const changeFilter = (event) => setFilters((current) => ({ ...current, [event.target.name]: event.target.value }));
-  const apply = (event) => {
-    event.preventDefault();
-    const { radius_km, ...rest } = filters;
-    setLoading(true); setError(''); setFieldErrors({});
-    setApplied({ ...rest, ...(location ? { latitude: location.latitude, longitude: location.longitude, radius_km } : {}) });
-    setAppliedLabel(location?.label || '');
+  const submitFilters = (next, nextLocation = location) => {
+    const { radius_km, needs, ...rest } = next;
+    setLoading(true); setError(''); setFieldErrors({}); setView('recommendations');
+    setFiltersOpen(false);
+    setApplied({ ...rest, needs: needs.join(','), ...(nextLocation ? { latitude: nextLocation.latitude, longitude: nextLocation.longitude, radius_km } : {}) });
+    setAppliedLabel(nextLocation?.label || '');
+    if (window.matchMedia('(max-width: 760px)').matches) resultHeading.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+  const apply = (event) => { event.preventDefault(); submitFilters(filters); };
   const clear = () => {
     setFilters(initialFilters); setLocation(null); setLocationKey((value) => value + 1);
-    setApplied({}); setAppliedLabel(''); setLoading(true); setError(''); setFieldErrors({});
+    submitFilters(initialFilters, null); setSort('recommended');
   };
-  const propsFor = (name) => ({ name, value: filters[name], onChange: changeFilter, 'aria-invalid': Boolean(fieldErrors[name]) });
+  const broaden = (type) => {
+    // Amplía los criterios aplicados, conservando las necesidades de la mascota.
+    const { latitude, longitude, ...criteria } = applied;
+    const next = { ...initialFilters, ...criteria, needs: applied.needs ? applied.needs.split(',') : [] };
+    const appliedLocation = latitude !== undefined ? { latitude, longitude, label: appliedLabel } : null;
+    if (type === 'radius') next.radius_km = String(Math.min(200, Number(applied.radius_km) * 2));
+    if (type === 'time') { next.date = ''; next.start_time = ''; next.end_time = ''; }
+    setFilters(next); setLocation(appliedLocation); setLocationKey((value) => value + 1); submitFilters(next, appliedLocation);
+  };
+  const propsFor = (name) => ({ name, value: filters[name], onChange: changeFilter, 'aria-invalid': Boolean(fieldErrors[name]), 'aria-describedby': fieldErrors[name] ? 'search-errors' : undefined });
+  const list = [...results[view]];
+  if (sort === 'distance') list.sort((a, b) => (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity));
+  if (sort === 'rating') list.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
+  if (sort === 'price') list.sort((a, b) => Math.min(...a.matching_services.map((s) => s.rate)) - Math.min(...b.matching_services.map((s) => s.rate)));
 
   return <>
-    <div hidden={Boolean(selectedId)}>
-      <form className="search-panel" onSubmit={apply} noValidate>
-        <LocationPicker key={locationKey} value={location} onChange={setLocation} title="¿Dónde necesitas un cuidador?" />
-        <div className="search-filters">
-          <label>Distancia máxima<select {...propsFor('radius_km')} disabled={!location}>{[1, 3, 5, 10, 20, 50, 100, 200].map((km) => <option key={km} value={km}>{km} km</option>)}</select></label>
-          <label>Servicio<select {...propsFor('service')}><option value="">Todos los servicios</option>{options.services.map((value) => <option key={value}>{value}</option>)}</select></label>
-          <label>Especie<select {...propsFor('species')}><option value="">Todas las especies</option>{options.species.map((value) => <option key={value}>{value}</option>)}</select></label>
-          <label>Especialidad<select {...propsFor('specialty')}><option value="">Todas las especialidades</option>{options.specialties.map((value) => <option key={value}>{value}</option>)}</select></label>
-          <label>Precio mínimo (COP)<input type="number" min="0" step="0.01" placeholder="Sin mínimo" {...propsFor('min_price')} /></label>
-          <label>Precio máximo (COP)<input type="number" min="0" step="0.01" placeholder="Sin máximo" {...propsFor('max_price')} /></label>
-          <label>Unidad de tarifa<select {...propsFor('rate_unit')}><option value="">Todas las unidades</option>{options.rateUnits.map((value) => <option key={value}>{value}</option>)}</select></label>
-          <label>Ordenar por<select {...propsFor('sort')}><option value="distance">Más cercanos</option><option value="price">Menor tarifa</option><option value="rating">Mejor calificación</option></select></label>
-        </div>
-        <fieldset className="availability-filter">
-          <legend>Disponibilidad para una fecha (opcional)</legend>
-          <div className="search-filters availability-inputs">
-            <label>Fecha<input type="date" {...propsFor('date')} /></label>
-            <label>Desde<input type="time" {...propsFor('start_time')} /></label>
-            <label>Hasta<input type="time" {...propsFor('end_time')} /></label>
-          </div>
-          <p className="muted small">Hora de Colombia. La franja debe quedar cubierta por el horario del cuidador y libre de reservas solicitadas o confirmadas.</p>
-        </fieldset>
-        <div className="form-actions"><button type="submit" disabled={loading}>{loading ? 'Buscando…' : 'Buscar cuidadores'}</button><button className="secondary" type="button" onClick={clear}>Limpiar filtros</button></div>
-        {!location && <p className="muted small">Sin ubicación se muestran todas las zonas. Selecciona un lugar para filtrar por distancia.</p>}
-      </form>
-      {error && <div className="error" role="alert"><strong>{error}</strong>{Object.keys(fieldErrors).length > 0 && <ul>{Object.entries(fieldErrors).map(([key, value]) => <li key={key}>{value}</li>)}</ul>}<button className="secondary" onClick={() => { setLoading(true); setApplied((current) => ({ ...current })); }}>Reintentar</button></div>}
-      {loading ? <p role="status">Buscando cuidadores que se ajusten a tus criterios…</p> : !error && <>
-        <div className="results-heading" role="status"><strong>{results.length} {results.length === 1 ? 'cuidador encontrado' : 'cuidadores encontrados'}</strong>{appliedLabel && <span className="muted small">{appliedLabel} · hasta {applied.radius_km} km · distancia en línea recta</span>}</div>
-        {results.length ? <div className="caregiver-grid">{results.map((caregiver) => <ResultCard key={caregiver.id} caregiver={caregiver} />)}</div> : <div className="empty-state"><h2>No encontramos cuidadores con esos criterios</h2><p>Prueba ampliar la distancia, cambiar la fecha o ajustar los filtros de servicio y precio.</p><button className="secondary" onClick={clear}>Limpiar filtros</button></div>}
-      </>}
+    <div hidden={Boolean(selectedId)} className="directory-layout">
+      <aside className="directory-sidebar" aria-label="Personalizar recomendaciones">
+        <button className="mobile-filter-toggle" type="button" aria-expanded={filtersOpen} aria-controls="caregiver-filters" onClick={() => setFiltersOpen((value) => !value)}><PawIcon /><span>Personalizar mi búsqueda<small>Mascota, ubicación y horario</small></span><span aria-hidden="true">{filtersOpen ? '−' : '＋'}</span></button>
+        <form id="caregiver-filters" className={`search-panel ${filtersOpen ? 'filters-open' : ''}`} onSubmit={apply} noValidate>
+          <div className="filter-heading"><span className="filter-icon"><PawIcon /></span><div><h2>Su cuidador ideal</h2><p>Cuéntanos qué necesitas</p></div><button className="text-button" type="button" onClick={clear}>Limpiar</button></div>
+          <section className="filter-section"><h3><span>01</span> Tu mascota</h3>
+            {account && <label>Mascota<Select {...propsFor('pet_id')}><option value="">Elegir sin mascota guardada</option>{pets.map((pet) => <option key={pet.id} value={pet.id}>{pet.name}{pet.size ? ` · ${pet.size === 'pequeno' ? 'pequeño' : pet.size}` : ''}</option>)}</Select></label>}
+            {petError && <p className="field-error" role="alert">{petError} <button className="text-button" type="button" onClick={() => setPetsRevision((value) => value + 1)}>Reintentar</button></p>}
+            {account && !pets.length && !petError && <p className="filter-hint">Puedes buscar ahora o <a href="#pets">registrar tu mascota</a>.</p>}
+            <label>¿A quién vamos a cuidar?<Select {...propsFor('species')}><option value="">Todas las especies</option>{options.species.map((value) => <option key={value}>{value}</option>)}</Select></label>
+            {filters.pet_id && <p className="filter-hint">Confirma su especie. También usaremos su edad, si está registrada.</p>}
+            <label>¿Qué servicio necesitas?<Select {...propsFor('service')}><option value="">Explorar todos los servicios</option>{options.services.map((value) => <option key={value}>{value}</option>)}</Select></label>
+            <fieldset className="need-choices"><legend>Necesita atención especial en…</legend><div>{options.specialties.map((need) => <label key={need}><input type="checkbox" checked={filters.needs.includes(need)} onChange={() => setFilters((current) => ({ ...current, needs: current.needs.includes(need) ? current.needs.filter((item) => item !== need) : [...current.needs, need] }))} /><span>{need}</span></label>)}</div></fieldset>
+          </section>
+          <section className="filter-section"><h3><span>02</span> Cerca de ti</h3>
+            <LocationPicker key={locationKey} value={location} onChange={setLocation} title="Ubicación del servicio" />
+            <label>Distancia máxima<Select {...propsFor('radius_km')} disabled={!location}>{[...new Set([1, 3, 5, 10, 20, 50, 100, 200, Number(filters.radius_km)])].sort((a, b) => a - b).map((km) => <option key={km} value={km}>{km} km</option>)}</Select></label>
+            {!location && <p className="filter-hint">Añade tu ubicación para priorizar cuidadores cercanos.</p>}
+          </section>
+          <section className="filter-section"><h3><span>03</span> A tu ritmo</h3>
+            <label>Fecha <span className="optional-text">Opcional</span><input type="date" min={todayInBogota()} {...propsFor('date')} /></label>
+            <div className="filter-pair"><label>Desde<input type="time" {...propsFor('start_time')} /></label><label>Hasta<input type="time" {...propsFor('end_time')} /></label></div>
+            <p className="filter-hint">Hora de Colombia. Comprobamos horarios y reservas.</p>
+          </section>
+          <details className="budget-filters"><summary>Presupuesto opcional <span aria-hidden="true">＋</span></summary><div className="filter-section"><label>Comparar tarifas por<Select {...propsFor('rate_unit')}><option value="">Todas las unidades</option>{options.rateUnits.map((value) => <option key={value}>{value}</option>)}</Select></label><div className="filter-pair"><label>Mínimo (COP)<input type="number" min="0" placeholder="Sin mínimo" {...propsFor('min_price')} /></label><label>Máximo (COP)<input type="number" min="0" placeholder="Sin máximo" {...propsFor('max_price')} /></label></div></div></details>
+          <button className="search-submit" type="submit" disabled={loading}>{loading ? 'Buscando…' : 'Encontrar mi cuidador'} <span aria-hidden="true">→</span></button>
+        </form>
+      </aside>
+      <section className="directory-results" aria-label="Cuidadores encontrados" aria-busy={loading}>
+        <div className="results-title" ref={resultHeading}><div><p className="eyebrow">Un cuidado que encaja contigo</p><h2>{results.context.personalized ? 'Tus recomendaciones' : 'Cuidadores para conocer'}</h2></div><span className="directory-count">{loading ? '…' : results.recommendations.length + results.alternatives.length} perfiles</span></div>
+        <p className="results-description">{results.context.personalized ? 'Primero, quienes coinciden con tu solicitud. Las reseñas complementan su compatibilidad.' : 'Elige su especie, sus necesidades y tu ubicación para encontrar opciones más afines.'}</p>
+        {results.context.pet && <p className="pet-context">Buscando para <strong>{results.context.pet.name}</strong>{results.context.inferred_needs.length ? ` · Por su edad: ${results.context.inferred_needs.join(', ').toLowerCase()}` : ''}</p>}
+        {appliedLabel && <p className="location-context">{appliedLabel} · hasta {applied.radius_km} km <span>· distancia en línea recta</span></p>}
+        <div className="results-toolbar"><div className="results-tabs" aria-label="Tipo de resultados"><button type="button" aria-pressed={view === 'recommendations'} onClick={() => setView('recommendations')}>{results.context.personalized ? 'Para tu solicitud' : 'Todos'} <span>{results.recommendations.length}</span></button><button type="button" aria-pressed={view === 'alternatives'} onClick={() => setView('alternatives')}>Otros perfiles <span>{results.alternatives.length}</span></button></div><label className="sort-control">Ordenar<Select aria-label="Ordenar cuidadores" value={sort} onChange={(event) => setSort(event.target.value)}><option value="recommended">Compatibilidad</option><option value="distance" disabled={!results.context.location_used}>Cercanía</option><option value="rating">Calificación</option><option value="price">Menor tarifa</option></Select></label></div>
+        {error && <div className="error" id="search-errors" role="alert"><strong>{error}</strong>{Object.keys(fieldErrors).length > 0 && <ul>{Object.entries(fieldErrors).map(([key, value]) => <li key={key}>{value}</li>)}</ul>}<button className="secondary" onClick={() => { setLoading(true); setApplied((current) => ({ ...current })); }}>Reintentar</button></div>}
+        {sort === 'price' && !applied.rate_unit && <p className="alternatives-note">Las tarifas pueden tener unidades distintas. Elige una unidad en Presupuesto para compararlas.</p>}
+        {loading ? <div className="result-skeletons" role="status"><span className="sr-only">Buscando cuidadores que se ajusten a tu solicitud…</span>{[0, 1, 2, 3].map((item) => <div key={item} className="result-skeleton" aria-hidden="true"><div /><span /><span /><p /><p /></div>)}</div> : !error && <>
+          {results.insufficient_matches && <div className="broaden-panel" role="status"><strong>{results.recommendations.length ? 'Hay pocas coincidencias por ahora' : 'Todavía no hay una coincidencia completa'}</strong><p>Prueba ampliar tu búsqueda. Conservaremos la especie, el servicio y las necesidades de tu mascota.</p><div>{applied.latitude !== undefined && Number(applied.radius_km) < 200 && <button className="secondary" onClick={() => broaden('radius')}>Ampliar a {Math.min(200, Number(applied.radius_km) * 2)} km</button>}{applied.date && <button className="secondary" onClick={() => broaden('time')}>Buscar sin horario</button>}<button className="text-button" onClick={clear}>Explorar sin filtros</button></div></div>}
+          {view === 'alternatives' && list.length > 0 && <p className="alternatives-note">Estas opciones requieren ajustar algún criterio. Revisa los avisos antes de solicitar un servicio.</p>}
+          <p className="sr-only" role="status">{list.length} cuidadores en {view === 'alternatives' ? 'otros perfiles' : 'tus resultados'}.</p>
+          {list.length ? <div className="caregiver-grid">{list.map((caregiver) => <ResultCard key={caregiver.id} caregiver={caregiver} personalized={results.context.personalized} onRequest={() => { requestIntent.current = true; }} />)}</div> : <div className="empty-state"><span className="empty-paw"><PawIcon /></span><h3>{view === 'alternatives' ? 'Ya estás viendo las mejores coincidencias' : 'Busquemos un poco más'}</h3><p>{view === 'alternatives' ? 'No hay otros perfiles para estos criterios. Puedes explorar sin filtros.' : 'Ajusta la distancia, el horario o el presupuesto para descubrir más opciones.'}</p>{view === 'recommendations' && results.alternatives.length > 0 ? <button onClick={() => setView('alternatives')}>Ver otros perfiles ({results.alternatives.length})</button> : <button className="secondary" onClick={clear}>Explorar sin filtros</button>}</div>}
+          <p className="directory-footnote">La disponibilidad puede cambiar. El servicio se confirma cuando el cuidador acepta tu solicitud.</p>
+        </>}
+      </section>
     </div>
-    {selectedId && <section className="caregiver-detail" aria-label="Perfil completo del cuidador">
-      <a href="#" className="back-link">← Volver a los resultados</a>
-      {detail.loading ? <p role="status">Cargando perfil…</p> : detail.error ? <p role="alert" className="error">{detail.error}</p> : <><CaregiverCard caregiver={detail.profile} /><BookingForm key={detail.profile.id} caregiver={detail.profile} account={account} prefill={applied} /></>}
-    </section>}
+    {selectedId && <section className="caregiver-detail" aria-label="Perfil completo del cuidador"><a href="#" className="back-link">← Volver a mis resultados</a>{detail.loading ? <p role="status">Cargando perfil…</p> : detail.error ? <p role="alert" className="error">{detail.error}</p> : <div className="detail-columns"><CaregiverCard caregiver={detail.profile} /><div ref={booking}><BookingForm key={detail.profile.id} caregiver={detail.profile} account={account} prefill={applied} /></div></div>}</section>}
   </>;
 }

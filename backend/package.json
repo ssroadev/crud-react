@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "node --watch --watch-path=. --watch-path=../shared server.js",
+    "seed:caregivers": "node scripts/seed-caregivers.js",
     "test": "node --test"
   },
   "keywords": [],

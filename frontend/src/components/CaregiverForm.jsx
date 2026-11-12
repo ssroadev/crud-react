@@ -1,3 +1,4 @@
+import Select from './Select';
 import { useState } from 'react';
 import options from '../../../shared/caregiver-options.json';
 import { saveCaregiverProfile } from '../api';
@@ -124,7 +125,7 @@ export default function CaregiverForm({ profile, account, onSaved }) {
                     ? form.services.filter((item) => item.name !== name) : [...form.services, { name, rate: '', unit: 'hora' }])} />{name}</label>
                   {service && <div className="rate-inputs">
                     <label>Tarifa (COP)<input aria-label={`Tarifa de ${name}`} type="number" min="0.01" max="100000000" step="0.01" value={service.rate} onChange={(e) => updateItem('services', index, { rate: e.target.value })} {...fieldProps('services')} /></label>
-                    <label>Por<select aria-label={`Unidad de ${name}`} value={service.unit} onChange={(e) => updateItem('services', index, { unit: e.target.value })}>{options.rateUnits.map((unit) => <option key={unit}>{unit}</option>)}</select></label>
+                    <label>Por<Select aria-label={`Unidad de ${name}`} value={service.unit} onChange={(e) => updateItem('services', index, { unit: e.target.value })}>{options.rateUnits.map((unit) => <option key={unit}>{unit}</option>)}</Select></label>
                   </div>}
                 </div>;
               })}
@@ -134,7 +135,7 @@ export default function CaregiverForm({ profile, account, onSaved }) {
               <h3>Disponibilidad semanal *</h3>
               <p className="muted small">Hora de Colombia. Puedes agregar varias franjas por día, sin superposiciones. Cada franja comienza y termina el mismo día.</p>
               {form.availability.map((slot, index) => <div className="availability-row" key={index}>
-                <label>Día<select aria-label={`Día del horario ${index + 1}`} value={slot.day} onChange={(e) => updateItem('availability', index, { day: Number(e.target.value) })}>{options.days.map((day, dayIndex) => <option key={day} value={dayIndex}>{day}</option>)}</select></label>
+                <label>Día<Select aria-label={`Día del horario ${index + 1}`} value={slot.day} onChange={(e) => updateItem('availability', index, { day: Number(e.target.value) })}>{options.days.map((day, dayIndex) => <option key={day} value={dayIndex}>{day}</option>)}</Select></label>
                 <label>Desde<input aria-label={`Inicio del horario ${index + 1}`} type="time" value={slot.start} onChange={(e) => updateItem('availability', index, { start: e.target.value })} {...fieldProps('availability')} /></label>
                 <label>Hasta<input aria-label={`Fin del horario ${index + 1}`} type="time" value={slot.end} onChange={(e) => updateItem('availability', index, { end: e.target.value })} {...fieldProps('availability')} /></label>
                 <button className="danger" type="button" aria-label={`Eliminar horario ${index + 1}`} onClick={() => change('availability', form.availability.filter((_, i) => i !== index))}>Quitar</button>

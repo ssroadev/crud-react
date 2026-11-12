@@ -7,7 +7,10 @@ export default function Caregivers({ account }) {
   const [revision, setRevision] = useState(0);
   const isCaregiver = account?.roles.includes('caregiver');
   return <>
-    <div className="page-intro"><p className="eyebrow">Cuidado con confianza</p><h1>Personas que cuidan como tú.</h1><p className="muted">Conoce su experiencia, compara servicios y encuentra compañía para tu mascota.</p></div>
+    <div className="directory-hero">
+      <div><p className="eyebrow">Su bienestar, tu tranquilidad</p><h1>El cuidado que necesita.<br /><span>Cerca de ti.</span></h1><p>Encuentra personas que conecten con tu mascota y con lo que necesitas.</p><div className="hero-benefits"><span>Perfiles con experiencia</span><span>Horarios para tu rutina</span><span>Reseñas de otros dueños</span></div></div>
+      <div className="hero-companion" aria-hidden="true"><img src="/images/pawhub-cat-cutout.png" alt="" /><span>Un buen cuidado empieza<br />con una buena conexión.</span></div>
+    </div>
     {isCaregiver && <div className="section-tabs" aria-label="Cuidadores">
       <button className={tab === 'browse' ? 'active' : 'secondary'} aria-pressed={tab === 'browse'} onClick={() => setTab('browse')}>Encontrar cuidador</button>
       <button className={tab === 'edit' ? 'active' : 'secondary'} aria-pressed={tab === 'edit'} onClick={() => setTab('edit')}>Administrar mi perfil profesional</button>
