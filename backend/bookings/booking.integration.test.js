@@ -56,6 +56,14 @@ test('solicitudes: migraciones y reglas reales de PostgreSQL', async (t) => {
   await db.exec('GRANT ALL ON public.reviews TO PUBLIC');
   const ratingsMigration = readFileSync(path.join(__dirname, '../migrations/008_verified_reviews.sql'), 'utf8');
   await db.exec(ratingsMigration); await db.exec(ratingsMigration);
+  // Supabase Storage no forma parte de PGlite; se verifica la configuración con su contrato de tabla.
+  await db.exec(`CREATE SCHEMA storage;
+    CREATE TABLE storage.buckets(id text PRIMARY KEY, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);`);
+  const photoMigration = readFileSync(path.join(__dirname, '../migrations/009_chat_realtime_photos.sql'), 'utf8');
+  await db.exec("INSERT INTO public.booking_messages(booking_id,sender_id,client_message_id,content) VALUES (1,101,'00000000-0000-4000-8000-000000000001','Mensaje anterior a las fotos')");
+  await db.exec(photoMigration); await db.exec(photoMigration);
+  assert.equal((await db.query('SELECT content, image_path FROM public.booking_messages')).rows[0].content, 'Mensaje anterior a las fotos');
+  assert.equal((await db.query('SELECT image_path FROM public.booking_messages')).rows[0].image_path, null);
   const publicReviews = async (profile = profileId, before = null, limit = 5) => (await db.query('SELECT public.pawhub_caregiver_reviews($1,$2,$3) AS result', [profile, before, limit])).rows[0].result;
   const publishRating = async (booking, owner = 101, rating = 5, comment = 'Excelente cuidado') => (await db.query('SELECT public.pawhub_publish_review($1,$2,$3,$4) AS result', [owner, booking, rating, comment])).rows[0].result;
   assert.equal((await publicReviews()).summary.rating, 4);
@@ -159,6 +167,33 @@ test('solicitudes: migraciones y reglas reales de PostgreSQL', async (t) => {
   const { randomUUID } = require('node:crypto');
   const send = async (id, actor, content, key = randomUUID()) => (await db.query('SELECT public.pawhub_send_message($1,$2,$3,$4) AS data', [actor, id, key, content])).rows[0].data;
   const history = async (id, actor, after = null, before = null, limit = 50) => (await db.query('SELECT public.pawhub_get_chat($1,$2,$3,$4,$5) AS data', [actor, id, after, before, limit])).rows[0].data;
+  await t.test('chat fotos: persiste foto sola, valida rutas, conserva historial y protege reintentos y permisos', async () => {
+    await reset(); const row = await create(); const key = randomUUID();
+    const path = `${row.id}/101/${key}-${'a'.repeat(64)}.webp`;
+    const sendPhoto = (photo = path, content = '', actor = 101) => db.query('SELECT public.pawhub_send_message($1,$2,$3,$4,$5) AS data', [actor, row.id, key, content, photo]).then((result) => result.rows[0].data);
+    const photo = await sendPhoto();
+    assert.equal(photo.image_path, path); assert.equal(photo.content, '');
+    assert.deepEqual(await sendPhoto(), photo);
+    assert.deepEqual((await history(row.id, 202)).messages, [photo]);
+    await rejects(() => sendPhoto(path, 'Contenido cambiado'), '23505');
+    await rejects(() => sendPhoto(path.replace('a'.repeat(64), 'b'.repeat(64))), '23505');
+    await rejects(() => sendPhoto(path.replace('/101/', '/202/')), '22023');
+    await rejects(() => sendPhoto('../archivo.webp'), '22023');
+    await rejects(() => sendPhoto(path, '', 303), 'P0002');
+    for (const role of ['anon', 'authenticated']) {
+      await db.exec(`SET ROLE ${role}`);
+      await rejects(() => sendPhoto(), '42501');
+      await rejects(() => db.query('SELECT public.pawhub_chat_context($1,$2)', [101, row.id]), '42501');
+      await db.exec('RESET ROLE');
+    }
+    await db.exec('SET ROLE service_role');
+    assert.deepEqual(await sendPhoto(), photo);
+    assert.equal((await db.query('SELECT public.pawhub_chat_context($1,$2) AS data', [101, row.id])).rows[0].data.id, String(row.id));
+    await db.exec('RESET ROLE');
+    const bucket = (await db.query("SELECT * FROM storage.buckets WHERE id = 'booking-chat-photos'")).rows[0];
+    assert.equal(bucket.public, false); assert.equal(Number(bucket.file_size_limit), 5242880);
+    assert.deepEqual(bucket.allowed_mime_types, ['image/webp']);
+  });
   await t.test('chat privado: ambos participantes conversan y terceros no pueden consultar ni enviar', async () => {
     await reset(); const row = await create();
     assert.deepEqual((await history(row.id, 101)).messages, []);

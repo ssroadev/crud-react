@@ -23,7 +23,8 @@ app.use(express.json());
 app.use((req, res, next) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
   if (req.get('Origin') && req.get('Origin') !== frontendOrigin) return res.status(403).json({ error: 'Origen de la petición no permitido.' });
-  if (!req.is('application/json')) return res.status(415).json({ error: 'Envía los datos en formato JSON.' });
+  const chatPhoto = req.method === 'POST' && /^\/bookings\/[1-9]\d*\/chat\/?$/.test(req.path) && req.is('multipart/form-data');
+  if (!req.is('application/json') && !chatPhoto) return res.status(415).json({ error: 'Envía los datos en formato JSON.' });
   next();
 });
 
