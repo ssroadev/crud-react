@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import CaregiverDirectory from './CaregiverDirectory';
 import MyCaregiverProfile from './MyCaregiverProfile';
 
 export default function Caregivers({ account }) {
   const [tab, setTab] = useState('browse');
   const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    const refreshRatings = () => setRevision((value) => value + 1);
+    window.addEventListener('pawhub:review-published', refreshRatings);
+    return () => window.removeEventListener('pawhub:review-published', refreshRatings);
+  }, []);
   const isCaregiver = account?.roles.includes('caregiver');
   return <>
     <div className="directory-hero">

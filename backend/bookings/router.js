@@ -3,11 +3,12 @@ const { validateBooking, validId } = require('./validation');
 const { readAll } = require('../caregivers/directory');
 const { assessAvailability, bookingTimestamp } = require('./management');
 const { createChatRouter } = require('../chat/router');
+const { validateReview, reviewError } = require('../reviews/validation');
 
 const selection = `*, pet:pets!bookings_id_pet_fkey(id,name,size,breed,birth_date,notes),
   caregiver_profile:caregiver_profiles!bookings_caregiver_profile_id_fkey(id,profile:profiles(first_name,last_name)),
   owner:users!bookings_owner_id_fkey(profile:profiles(first_name,last_name,phone)),
-  caregiver:caregivers!bookings_id_caregiver_fkey!inner(id_user,active)`;
+  caregiver:caregivers!bookings_id_caregiver_fkey!inner(id_user,active), review:reviews(id,rating,comment)`;
 
 function bookingError(res, error) {
   const statuses = { '22023': 400, '42501': 403, 'P0002': 404, '23P01': 409, 'P0001': 409, '23505': 409 };
@@ -40,8 +41,13 @@ function createBookingRouter(database, requireAccount) {
       const now = Date.now();
       res.json(rows.map((row) => {
         const { caregiver: _internal, ...booking } = row;
+        const review = Array.isArray(row.review) ? row.review[0] : row.review;
         return {
           ...booking, owner_unread: view === 'sent' && !!(booking.reviewed_at || booking.completed_at) && !booking.owner_seen_at,
+          review: review && Number.isInteger(review.rating) && review.rating >= 1 && review.rating <= 5
+            ? { id: String(review.id), rating: review.rating, comment: review.comment } : null,
+          can_rate: view === 'sent' && row.status === 'completed' && !review && bookingTimestamp(row.end_at) <= now &&
+            String(row.caregiver?.id_user) !== String(req.account.id),
           ...(view === 'received' ? {
             availability_check: assessAvailability(row, byId.get(row.caregiver_profile_id), rows, now),
             can_complete: row.status === 'confirmed' && bookingTimestamp(row.end_at) <= now,
@@ -80,6 +86,19 @@ function createBookingRouter(database, requireAccount) {
     if (error) return bookingError(res, error);
     if (!data) return res.status(404).json({ error: 'No se encontró esa solicitud en tu cuenta.' });
     res.status(204).end();
+  });
+
+  router.post('/:id/rating', async (req, res) => {
+    if (!validId(req.params.id)) return res.status(400).json({ error: 'Selecciona un servicio válido.' });
+    const { data: fields, errors } = validateReview(req.body);
+    if (Object.keys(errors).length) return res.status(400).json({ error: 'Revisa tu valoración.', errors });
+    try {
+      const { data, error } = await database.rpc('pawhub_publish_review', {
+        p_owner_id: req.account.id, p_booking_id: req.params.id, p_rating: fields.rating, p_comment: fields.comment,
+      });
+      if (error) return reviewError(res, error);
+      res.status(data.created ? 201 : 200).json({ review: data.review, message: data.created ? 'Gracias por compartir tu experiencia. Tu opinión ya es pública.' : 'Tu opinión ya estaba publicada. Recuperamos el envío anterior.' });
+    } catch (error) { reviewError(res, error); }
   });
 
   router.post('/:id/complete', async (req, res) => {

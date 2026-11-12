@@ -54,6 +54,12 @@ export const getCaregivers = (filters = {}, options = {}) => {
   return request(`/caregivers?${query}`, options);
 };
 export const getCaregiver = (id, options = {}) => request(`/caregivers/${encodeURIComponent(id)}`, options);
+export const getCaregiverReviews = (id, filters = {}, options = {}) => request(`/caregivers/${encodeURIComponent(id)}/reviews?${new URLSearchParams(filters)}`, options);
+export const publishBookingRating = async (id, data) => {
+  const result = await request(`/bookings/${encodeURIComponent(id)}/rating`, { method: 'POST', body: JSON.stringify(data) });
+  window.dispatchEvent(new Event('pawhub:review-published'));
+  return result;
+};
 export const getCaregiverRecommendations = (filters = {}, options = {}) => {
   const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value !== '' && value !== null && value !== undefined));
   return request(`/caregivers/recommendations?${query}`, options);

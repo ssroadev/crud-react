@@ -106,7 +106,7 @@ export default function AuthPage({ mode = 'login', onAuthenticated, onRecoveryCo
     onChange={change} onBlur={blur} error={errorFor(name)} visible={passwordVisible} onToggle={() => setPasswordVisible((visible) => !visible)}
     autoComplete={autocomplete} idPrefix="auth" />;
 
-  return <main className={`auth-page${registering || resetting ? ' auth-page-register' : ''}`}>
+  return <main className={`auth-page${view === 'login' ? ' auth-page-login' : ''}${registering || resetting ? ' auth-page-register' : ''}`}>
     <section className="auth-panel" aria-label="Acceso a PawHub">
       <a className="auth-brand" href="#" aria-label="PawHub, inicio"><img src="/images/pawhub-login-logo.png" alt="PawHub" /></a>
       <div className={`auth-card${registering || resetting ? ' auth-card-register' : ''}`}>
@@ -144,7 +144,7 @@ export default function AuthPage({ mode = 'login', onAuthenticated, onRecoveryCo
               <p className="auth-help">Te enviaremos un enlace seguro para crear una nueva contraseña.</p>
             </div>}
             {view === 'login' && <>
-              <div className="auth-field"><label className="auth-visually-hidden" htmlFor="auth-email">Correo electrónico</label><input id="auth-email" name="email" type="email" value={form.email} onChange={change} onBlur={blur} placeholder="Correo electrónico" autoComplete="email" required maxLength="254" aria-invalid={Boolean(errorFor('email'))} />{errorFor('email') && <p className="auth-message field-error" role="alert">{errorFor('email')}</p>}</div>
+              <div className="auth-field"><label htmlFor="auth-email">Correo electrónico</label><input id="auth-email" name="email" type="email" value={form.email} onChange={change} onBlur={blur} placeholder="tu@correo.com" autoComplete="email" required maxLength="254" aria-invalid={Boolean(errorFor('email'))} />{errorFor('email') && <p className="auth-message field-error" role="alert">{errorFor('email')}</p>}</div>
               {passwordField('password', 'Contraseña', 'current-password')}
               <button className="auth-recovery-link" type="button" onClick={() => switchView('recovery')}>¿Olvidaste tu contraseña?</button>
             </>}

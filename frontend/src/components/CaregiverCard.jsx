@@ -1,8 +1,14 @@
 import options from '../../../shared/caregiver-options.json';
+import { useState } from 'react';
+import CaregiverReviews from './CaregiverReviews';
 
 const money = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 2 });
 
 export default function CaregiverCard({ caregiver, preview = false }) {
+  const [summary, setSummary] = useState(null);
+  const rating = summary ? summary.rating : caregiver.rating;
+  const reviewCount = summary ? summary.review_count : caregiver.review_count;
+  const ratingLabel = rating == null ? 'Sin calificaciones todavía' : `★ ${rating.toLocaleString('es-CO')} de 5 · ${reviewCount} ${reviewCount === 1 ? 'reseña' : 'reseñas'}`;
   const name = [caregiver.profile?.first_name, caregiver.profile?.last_name].filter(Boolean).join(' ');
   return (
     <article className="caregiver-card">
@@ -14,7 +20,7 @@ export default function CaregiverCard({ caregiver, preview = false }) {
           <p className="muted">{caregiver.zone || 'Zona de cobertura por completar'}</p>
         </div>
       </div>
-      {caregiver.rating !== undefined && <p className="profile-rating">{caregiver.rating === null ? 'Sin calificaciones todavía' : `★ ${caregiver.rating.toLocaleString('es-CO')} de 5 · ${caregiver.review_count} ${caregiver.review_count === 1 ? 'reseña' : 'reseñas'}`}</p>}
+      {rating !== undefined && (!preview && caregiver.id ? <button type="button" className="profile-review-link" aria-label="Leer opiniones del cuidador" onClick={() => document.getElementById(`caregiver-reviews-${caregiver.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><span>{ratingLabel}</span><span>Leer opiniones ↓</span></button> : <p className="profile-rating">{ratingLabel}</p>)}
       <p className="preserve-lines">{caregiver.bio || 'Tu descripción personal aparecerá aquí.'}</p>
       <h4>Experiencia</h4>
       <p>{caregiver.years_experience || 0} años de experiencia</p>
@@ -46,6 +52,7 @@ export default function CaregiverCard({ caregiver, preview = false }) {
           </a>
         ))}</div>
       </>}
+      {!preview && caregiver.id && <CaregiverReviews caregiverId={caregiver.id} onSummary={setSummary} />}
     </article>
   );
 }

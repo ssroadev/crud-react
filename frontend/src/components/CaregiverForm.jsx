@@ -60,7 +60,7 @@ export default function CaregiverForm({ profile, account, onSaved }) {
   };
 
   return (
-    <div className="editor-layout">
+    <div className="editor-layout professional-editor">
       <div>
         <div className="section-heading">
           <div><p className="eyebrow">Tu espacio profesional</p><h2>Perfil de cuidador</h2></div>

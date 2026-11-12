@@ -3,6 +3,7 @@ const { validateCaregiver } = require('./validation');
 const { parseSearch, filterCaregivers } = require('./search');
 const { readAll, enrichCaregivers } = require('./directory');
 const { parseRecommendations, recommendCaregivers } = require('./recommendations');
+const { parseReviewPage, validProfileId, reviewError } = require('../reviews/validation');
 
 const selection = '*, profile:profiles(first_name,last_name,id_user)';
 
@@ -77,6 +78,18 @@ function createCaregiverRouter(supabase, requireAccount = (_req, res) => res.sta
       .select(selection).single();
     if (error) return databaseError(res, error);
     res.json(data);
+  });
+
+  router.get('/:id/reviews', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    if (!validProfileId(req.params.id)) return res.status(404).json({ error: 'No se encontró ese perfil.' });
+    const { data: page, errors } = parseReviewPage(req.query);
+    if (Object.keys(errors).length) return res.status(400).json({ error: 'Revisa la página de opiniones.', errors });
+    try {
+      const { data, error } = await supabase.rpc('pawhub_caregiver_reviews', { p_profile_id: req.params.id, ...page });
+      if (error) return reviewError(res, error);
+      res.json(data);
+    } catch (error) { reviewError(res, error); }
   });
 
   router.get('/:id', async (req, res) => {

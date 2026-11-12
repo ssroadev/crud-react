@@ -4,14 +4,37 @@ Aplicación React + Express + Supabase para administrar mascotas y perfiles prof
 
 ## Preparación
 
-1. En Supabase, ejecuta las migraciones pendientes de `backend/migrations` en orden: `001_caregiver_profiles.sql`, `002_caregiver_search.sql`, `003_registration_auth.sql`, `004_booking_requests.sql`, `005_caregiver_management.sql`, `006_booking_chat.sql` y `007_pet_breeds.sql`. La sexta añade las conversaciones privadas y la séptima crea y puebla el catálogo de razas. Si ya tienes las seis primeras, solo ejecuta la séptima. Usa las migraciones, no el esquema exportado de contexto.
+1. En Supabase, ejecuta las migraciones pendientes de `backend/migrations` en orden: `001_caregiver_profiles.sql`, `002_caregiver_search.sql`, `003_registration_auth.sql`, `004_booking_requests.sql`, `005_caregiver_management.sql`, `006_booking_chat.sql`, `007_pet_breeds.sql` y `008_verified_reviews.sql`. La sexta añade conversaciones privadas, la séptima crea el catálogo de razas y la octava habilita las opiniones vinculadas a servicios completados. Si ya tienes las siete primeras, solo ejecuta la octava. Usa las migraciones, no el esquema exportado de contexto.
 2. Configura `backend/.env` con `SUPABASE_URL` y `SUPABASE_KEY`. Esta última debe ser una clave de servidor secret (`sb_secret_...`) o la compatible `service_role`; nunca la incluyas en el frontend. El puerto predeterminado es `3002`; puedes cambiarlo con `PORT`.
 3. Ejecuta `npm ci` y `npm run dev` desde `backend`. El modo de desarrollo recarga el servidor al cambiar archivos del backend, `.env` o los catálogos de `shared`.
 4. Ejecuta `npm ci` y `npm run dev` desde `frontend`. Abre `http://localhost:5173`. El frontend usa `http://localhost:3002`; configura `VITE_API_URL` si el backend usa otra URL.
 
+## Opiniones de cuidadores
+
+Cada perfil público incluye **Opiniones de otros dueños**, con promedio sobre cinco estrellas, número de valoraciones, distribución de puntuaciones, comentarios, nombre del autor y fecha cuando está registrada. Las opiniones indican el servicio al que corresponden y que está completado. Se consultan sin iniciar sesión, en páginas de cinco, con **Ver más opiniones**. El resumen abarca todas las valoraciones elegibles, aunque solo se muestre una página; el promedio del encabezado se actualiza con ese mismo resumen. Si no existen valoraciones aparece **Todavía no tiene opiniones**. Los errores permiten reintentar sin perder las páginas ya consultadas.
+
+Desde **Mis solicitudes**, un dueño puede pulsar **Valorar servicio** en una reserva completada: selecciona de una a cinco estrellas y, opcionalmente, escribe hasta 2000 caracteres. Antes de publicar se indica que puntuación, comentario y nombre serán públicos. Una opinión publicada aparece en su tarjeta y enlaza al perfil del cuidador. Publicarla vuelve a consultar las recomendaciones y sus promedios, conservando los filtros de búsqueda. La API no ofrece editar o publicar una segunda opinión del mismo servicio. Los reintentos idénticos recuperan el envío anterior sin duplicarlo, y los errores conservan lo escrito.
+
+La migración `008_verified_reviews.sql` reutiliza `reviews` y su vínculo único `id_booking`. Añade `author_id` y, si falta, `created_at`; no inventa fechas ni autores para opiniones históricas. Las antiguas sin autor registrado muestran **Dueño de una mascota**. Solo se publican y cuentan valoraciones de uno a cinco asociadas a reservas `completed` del cuidador correspondiente. No se exponen IDs de reservas, correos, teléfonos, ubicaciones ni notas privadas en las opiniones públicas. Los comentarios se renderizan como texto, sin ejecutar HTML.
+
+Express obtiene la identidad de la sesión. PostgreSQL comprueba, en la misma transacción, que el usuario sea dueño tanto de la reserva como de la mascota, que no valore su propio servicio de cuidador, que el servicio esté completado y que su horario haya terminado. El bloqueo de la reserva y la restricción única impiden publicaciones duplicadas. Un trigger también valida inserciones y actualizaciones y prohíbe cambiar el servicio o autor de una opinión. Las claves públicas no acceden a la tabla ni a estas funciones. El backend tiene lectura de `reviews`; las escrituras se realizan mediante la función autorizada, no mediante INSERT directo.
+
+| Método | Ruta | Comportamiento |
+| --- | --- | --- |
+| GET | `/caregivers/:id/reviews?before_id=<id>&limit=5` | Perfil publicado y activo; resumen global y página de opiniones |
+| POST | `/bookings/:id/rating` | Sesión del dueño; recibe `{ rating, comment }` y publica o recupera un envío idéntico |
+
+La consulta devuelve `summary` (`rating`, `review_count`, `distribution`), `reviews`, `has_more` y `next_cursor`. La paginación usa IDs descendentes y conserva los `bigint` como cadenas. Admite de una a cincuenta opiniones por página. La publicación devuelve 201 al crear y 200 al recuperar un envío idéntico; una reserva ajena devuelve 404, un servicio no completado o ya valorado con otro contenido devuelve 409 y los datos inválidos devuelven 400.
+
+Para habilitar esta historia en Supabase, ejecuta `backend/migrations/008_verified_reviews.sql` en el editor SQL y reinicia el backend si mantiene una versión anterior. La clave de servidor por API no permite aplicar migraciones SQL. Las pruebas ejecutan la migración y las reglas en PostgreSQL local con PGlite, sin modificar el Supabase real ni crear opiniones ficticias allí.
+
 ## Formularios y razas de mascotas
 
-Los formularios comparten campos con bordes suaves, estados de foco y error y selectores con menús propios. Los menús largos incluyen buscador; se puede navegar con flechas, elegir con Enter, salir con Tab y cerrar con Escape o al pulsar fuera. Los menús se ajustan a la pantalla y aparecen sobre las tarjetas para evitar recortes. Búsqueda, solicitudes y perfil profesional utilizan el mismo componente `Select`.
+**Mi perfil** dispone de un resumen con nombre, correo y rol, accesos a mascotas, solicitudes y cuidadores, y un formulario con campos agrupados. Valida nombre, apellido y teléfono, indica cambios pendientes, permite descartarlos y conserva lo escrito si el guardado falla. El correo y el rol se muestran como información de la cuenta. El formulario usa todo el ancho de su espacio y se adapta a móvil; el perfil profesional conserva su vista previa y organiza las tarifas y horarios en secciones.
+
+Los formularios comparten campos con bordes suaves, estados de foco y error y selectores con menús propios. `Select` importa sus estilos desde `frontend/src/select.css` para mantenerlos en cualquier formulario. Los menús largos incluyen buscador; se puede navegar con flechas, elegir con Enter, salir con Tab y cerrar con Escape o al pulsar fuera. Los menús se ajustan a la pantalla, acompañan al campo al desplazarse y aparecen sobre las tarjetas para evitar recortes. Búsqueda, mascotas, solicitudes y perfil profesional utilizan el mismo componente.
+
+La búsqueda conserva el contenedor ancho también al volver desde el enlace **Cuidadores** de la cabecera. La cuadrícula adapta su número de columnas a un ancho mínimo de 340 px por tarjeta, y pasa a una columna en móvil. Nombres, zonas, servicios y acciones se ajustan a su tarjeta sin desbordarse.
 
 **Mis mascotas** presenta el formulario y las mascotas registradas en dos columnas; en móvil se apilan. El tamaño se elige con tarjetas de selección única. El formulario muestra errores por campo, evita envíos repetidos y conserva los datos cuando falla el guardado.
 

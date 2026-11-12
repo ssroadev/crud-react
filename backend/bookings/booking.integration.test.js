@@ -48,6 +48,20 @@ test('solicitudes: migraciones y reglas reales de PostgreSQL', async (t) => {
   await db.exec(managementMigration); await db.exec(managementMigration);
   const chatMigration = readFileSync(path.join(__dirname, '../migrations/006_booking_chat.sql'), 'utf8');
   await db.exec(chatMigration); await db.exec(chatMigration);
+  await db.exec(`INSERT INTO public.reviews(id_booking,rating,comment) VALUES (1,4,'Opinión histórica');
+    INSERT INTO public.bookings(id_pet,id_caregiver,id_service,owner_id,start_at,end_at,status,total_amount)
+      VALUES (1,77,90,101,'2020-01-02 09:00','2020-01-02 10:00','requested',12000);
+    INSERT INTO public.reviews(id_booking,rating,comment) SELECT max(id),1,'No corresponde a un servicio completado' FROM public.bookings;`);
+  // La migración debe quitar también permisos heredados de PUBLIC.
+  await db.exec('GRANT ALL ON public.reviews TO PUBLIC');
+  const ratingsMigration = readFileSync(path.join(__dirname, '../migrations/008_verified_reviews.sql'), 'utf8');
+  await db.exec(ratingsMigration); await db.exec(ratingsMigration);
+  const publicReviews = async (profile = profileId, before = null, limit = 5) => (await db.query('SELECT public.pawhub_caregiver_reviews($1,$2,$3) AS result', [profile, before, limit])).rows[0].result;
+  const publishRating = async (booking, owner = 101, rating = 5, comment = 'Excelente cuidado') => (await db.query('SELECT public.pawhub_publish_review($1,$2,$3,$4) AS result', [owner, booking, rating, comment])).rows[0].result;
+  assert.equal((await publicReviews()).summary.rating, 4);
+  assert.equal((await publicReviews()).summary.review_count, 1);
+  assert.equal((await publicReviews()).reviews[0].created_at, null);
+  assert.equal((await db.query('SELECT count(*)::int AS n FROM public.reviews')).rows[0].n, 2);
   assert.equal((await db.query('SELECT owner_id,caregiver_profile_id,service_name FROM public.bookings')).rows[0].owner_id, 101);
   assert.equal((await db.query('SELECT caregiver_profile_id FROM public.bookings')).rows[0].caregiver_profile_id, profileId);
 
@@ -56,7 +70,7 @@ test('solicitudes: migraciones y reglas reales de PostgreSQL', async (t) => {
     return (await db.query('SELECT * FROM public.pawhub_request_booking($1,$2,$3,$4,$5,$6,$7,$8,$9)', Object.values(values))).rows[0];
   };
   const review = async (id, decision, actor = 202, note = '') => (await db.query('SELECT * FROM public.pawhub_review_booking($1,$2,$3,$4)', [actor, id, decision, note])).rows[0];
-  const reset = async () => { await db.exec('DELETE FROM public.booking_messages; DELETE FROM public.bookings'); await db.query('UPDATE public.caregiver_profiles SET availability=$1, services=$2,status=\'published\'', [JSON.stringify(schedule), JSON.stringify(offers)]); await db.exec('UPDATE public.caregivers SET active=true'); };
+  const reset = async () => { await db.exec('DELETE FROM public.reviews; DELETE FROM public.booking_messages; DELETE FROM public.bookings'); await db.query('UPDATE public.caregiver_profiles SET availability=$1, services=$2,status=\'published\'', [JSON.stringify(schedule), JSON.stringify(offers)]); await db.exec('UPDATE public.caregivers SET active=true'); };
   const rejects = (action, code) => assert.rejects(action, (error) => error.code === code);
 
   await t.test('crea solo pendiente, conserva observaciones y calcula precio y duración desde la oferta', async () => {
@@ -219,6 +233,89 @@ test('solicitudes: migraciones y reglas reales de PostgreSQL', async (t) => {
     await db.exec('SET ROLE service_role');
     assert.equal((await history(row.id, 101)).booking.owner.id, '101');
     assert.equal((await send(row.id, 202, 'Envío autorizado desde el backend')).sender_id, '202');
+    await db.exec('RESET ROLE');
+  });
+
+  const completedService = async () => (await db.query(`INSERT INTO public.bookings(id_pet,id_caregiver,id_service,owner_id,caregiver_profile_id,service_name,start_at,end_at,status,total_amount)
+    VALUES (1,77,90,101,$1,'Paseos','2020-01-01 09:00','2020-01-01 10:00','completed',18000) RETURNING id`, [profileId])).rows[0];
+
+  await t.test('opiniones: solo el dueño publica tras completar, reintentar no duplica y no cambia una valoración previa', async () => {
+    await reset(); const row = await completedService();
+    await rejects(() => publishRating(row.id, 303), 'P0002');
+    await rejects(() => publishRating(row.id, 202), 'P0002');
+    const first = await publishRating(row.id);
+    assert.equal(first.created, true); assert.equal(first.review.rating, 5); assert.ok(first.review.created_at);
+    const retry = await publishRating(row.id); assert.equal(retry.created, false); assert.deepEqual(retry.review, first.review);
+    await rejects(() => publishRating(row.id, 101, 4, 'Otra opinión'), '23505');
+    assert.equal((await db.query('SELECT count(*)::int AS n FROM public.reviews')).rows[0].n, 1);
+  });
+
+  await t.test('opiniones: rechaza estados no completados, servicios futuros, mascotas ajenas y autopuntuaciones', async () => {
+    await reset(); const row = await completedService();
+    for (const status of ['requested', 'confirmed', 'rejected', 'cancelled']) {
+      await db.query('UPDATE public.bookings SET status=$1 WHERE id=$2', [status,row.id]);
+      await rejects(() => publishRating(row.id), 'P0001');
+    }
+    await db.query("UPDATE public.bookings SET status='completed',end_at='2099-01-01 10:00' WHERE id=$1", [row.id]);
+    await rejects(() => publishRating(row.id), 'P0001');
+    await db.query("UPDATE public.bookings SET end_at='2020-01-01 10:00',id_pet=2 WHERE id=$1", [row.id]);
+    await rejects(() => publishRating(row.id), '42501');
+    await db.query('UPDATE public.bookings SET id_pet=1,owner_id=202 WHERE id=$1', [row.id]);
+    await rejects(() => publishRating(row.id, 202), '42501');
+  });
+
+  await t.test('opiniones: trigger impide inserciones inválidas y cambiar autor o servicio', async () => {
+    await reset(); const row = await completedService();
+    for (const [author, rating] of [[null,5],[303,5],[101,0],[101,6]]) {
+      await assert.rejects(() => db.query('INSERT INTO public.reviews(id_booking,author_id,rating) VALUES ($1,$2,$3)', [row.id,author,rating]));
+    }
+    await rejects(() => publishRating(row.id,101,5,'a'.repeat(2001)), '22023');
+    await publishRating(row.id,101,4,'  Muy buen servicio  ');
+    const other = await completedService();
+    await rejects(() => db.query('UPDATE public.reviews SET id_booking=$1 WHERE id_booking=$2',[other.id,row.id]), '22023');
+    await rejects(() => db.query('UPDATE public.reviews SET author_id=303 WHERE id_booking=$1',[row.id]), '22023');
+    assert.equal((await publicReviews()).reviews[0].comment, 'Muy buen servicio');
+  });
+
+  await t.test('opiniones: promedio completo, distribución, comentarios, autor y páginas sin reservas privadas', async () => {
+    await reset();
+    for (const rating of [5,4,3]) { const row = await completedService(); await publishRating(row.id,101,rating,`Experiencia ${rating}`); }
+    const first = await publicReviews(profileId,null,2);
+    assert.equal(first.summary.rating, 4); assert.equal(first.summary.review_count, 3);
+    assert.deepEqual(first.summary.distribution, {'1':0,'2':0,'3':1,'4':1,'5':1});
+    assert.equal(first.reviews.length,2); assert.equal(first.has_more,true);
+    assert.equal(first.reviews[0].author_name,'Ana'); assert.equal(first.reviews[0].service_name,'Paseos');
+    assert.equal('id_booking' in first.reviews[0],false); assert.equal('author_id' in first.reviews[0],false);
+    assert.equal(JSON.stringify(first).includes('owner@example.com'),false);
+    const next = await publicReviews(profileId,first.next_cursor,2);
+    assert.equal(next.reviews.length,1); assert.equal(next.has_more,false); assert.equal(next.next_cursor,null);
+    assert.equal(next.summary.review_count,3);
+    assert.equal(new Set([...first.reviews,...next.reviews].map((r)=>r.id)).size,3);
+    assert.equal((await publicReviews(otherProfileId)).summary.review_count,0);
+    assert.equal((await publicReviews(otherProfileId)).summary.rating,null);
+  });
+
+  await t.test('opiniones: perfiles no públicos, reservas desmarcadas y roles sin permiso no exponen ni publican opiniones', async () => {
+    await reset(); const row = await completedService(); await publishRating(row.id);
+    await db.query("UPDATE public.bookings SET status='cancelled' WHERE id=$1",[row.id]);
+    assert.equal((await publicReviews()).summary.review_count,0);
+    await db.query("UPDATE public.caregiver_profiles SET status='draft' WHERE id=$1",[profileId]);
+    await rejects(()=>publicReviews(),'P0002');
+    await db.query("UPDATE public.caregiver_profiles SET status='published' WHERE id=$1",[profileId]);
+    await db.exec('UPDATE public.caregivers SET active=false WHERE id=77');
+    await rejects(()=>publicReviews(),'P0002');
+    await db.exec('UPDATE public.caregivers SET active=true WHERE id=77');
+    const fresh = await completedService();
+    for (const role of ['anon','authenticated']) {
+      await db.exec(`SET ROLE ${role}`);
+      await rejects(()=>publicReviews(),'42501'); await rejects(()=>publishRating(row.id),'42501');
+      await rejects(()=>db.query('SELECT * FROM public.reviews'),'42501');
+      await db.exec('RESET ROLE');
+    }
+    await db.exec('SET ROLE service_role');
+    assert.equal((await publicReviews()).summary.review_count,0);
+    assert.equal((await publishRating(fresh.id)).created,true);
+    await rejects(()=>db.query('INSERT INTO public.reviews(id_booking,author_id,rating) VALUES ($1,101,5)',[row.id]),'42501');
     await db.exec('RESET ROLE');
   });
 });

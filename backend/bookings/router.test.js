@@ -115,3 +115,17 @@ test('informa servicios completados aunque la reserva anterior no tenga fecha de
   Object.assign(api.state.rows[0], { status: 'completed', reviewed_at: null, completed_at: '2030-01-01T10:00:00Z' });
   assert.equal((await (await api.request()).json())[0].owner_unread, true);
 });
+
+test('solo ofrece valorar un servicio propio completado sin opinión previa y normaliza la relación de reseña', async (t) => {
+  const api = await setup(t);
+  Object.assign(api.state.rows[0], {status:'completed',end_at:'2020-01-01T12:00:00',review:null});
+  assert.equal((await (await api.request()).json())[0].can_rate,true);
+  api.state.rows[0].review=[{id:8,rating:4,comment:'Buen cuidado'}];
+  const saved=(await (await api.request()).json())[0];
+  assert.equal(saved.can_rate,false);assert.deepEqual(saved.review,{id:'8',rating:4,comment:'Buen cuidado'});
+  api.state.rows[0].review={id:8,rating:null,comment:'Histórica sin puntuación'};
+  const historical=(await (await api.request()).json())[0];
+  assert.equal(historical.review,null);assert.equal(historical.can_rate,false);
+  api.state.rows[0].review=null;api.state.rows[0].status='confirmed';
+  assert.equal((await (await api.request()).json())[0].can_rate,false);
+});

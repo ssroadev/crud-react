@@ -1,5 +1,6 @@
-import { Children, isValidElement, useEffect, useId, useRef, useState } from 'react';
+import { Children, isValidElement, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import '../select.css';
 
 const textOf = (children) => Children.toArray(children).map((child) => isValidElement(child) ? textOf(child.props.children) : String(child)).join('');
 const normalize = (value) => value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase('es');
@@ -32,7 +33,7 @@ export default function Select({ children, value = '', onChange, name, disabled 
   const typed = useRef({ value: '', at: 0 });
   const filtered = options.filter((option) => option.value === fallbackValue || normalize(`${option.label} ${option.group}`).includes(normalize(query)));
 
-  const place = () => {
+  const place = useCallback(() => {
     const rect = trigger.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom - 12;
     const above = spaceBelow < 230 && rect.top > spaceBelow;
@@ -40,7 +41,7 @@ export default function Select({ children, value = '', onChange, name, disabled 
     const width = Math.min(Math.max(rect.width, 250), window.innerWidth - 24);
     return { position: 'fixed', width, left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)),
       maxHeight: height, ...(above ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }) };
-  };
+  }, []);
   const show = () => {
     if (trigger.current.matches(':disabled')) return;
     setPosition(place()); setQuery('');
@@ -57,31 +58,32 @@ export default function Select({ children, value = '', onChange, name, disabled 
 
   useEffect(() => {
     if (!open) return;
-    (canSearch ? search.current : list.current)?.focus();
+    (canSearch ? search.current : list.current)?.focus({ preventScroll: true });
     const outside = (event) => {
       if (!popup.current?.contains(event.target) && !trigger.current?.contains(event.target)) setOpen(false);
     };
     const reposition = (event) => {
       if (event.target instanceof Node && popup.current?.contains(event.target)) return;
       const rect = trigger.current?.getBoundingClientRect();
-      if (!rect || rect.bottom < 0 || rect.top > window.innerHeight) { setOpen(false); return; }
-      // Cierra al desplazar el documento; el menú nunca queda separado de su campo.
-      setOpen(false);
+      if (!rect || !rect.width || !rect.height || rect.bottom < 0 || rect.top > window.innerHeight) { setOpen(false); return; }
+      // Acompaña al campo cuando el navegador lo desplaza para darle foco.
+      setPosition(place());
     };
+    const navigate = () => setOpen(false);
     const focusOutside = (event) => {
       if (!popup.current?.contains(event.target) && !trigger.current?.contains(event.target)) setOpen(false);
     };
     document.addEventListener('pointerdown', outside);
     document.addEventListener('focusin', focusOutside);
     window.addEventListener('resize', reposition);
-    window.addEventListener('hashchange', reposition);
+    window.addEventListener('hashchange', navigate);
     window.addEventListener('scroll', reposition, true);
     return () => {
       document.removeEventListener('pointerdown', outside); document.removeEventListener('focusin', focusOutside);
       window.removeEventListener('resize', reposition); window.removeEventListener('scroll', reposition, true);
-      window.removeEventListener('hashchange', reposition);
+      window.removeEventListener('hashchange', navigate);
     };
-  }, [open, canSearch]);
+  }, [open, canSearch, place]);
 
   useEffect(() => {
     if (!open) return;
@@ -114,7 +116,7 @@ export default function Select({ children, value = '', onChange, name, disabled 
   };
 
   return <div className={`select-control ${open ? 'is-open' : ''} ${className}`}>
-    <button {...aria} ref={trigger} id={triggerId} type="button" role="combobox" className={`select-trigger ${String(value) === '' ? 'is-placeholder' : ''}`}
+    <button {...aria} ref={trigger} id={triggerId} title={selected?.label} type="button" role="combobox" className={`select-trigger ${String(value) === '' ? 'is-placeholder' : ''}`}
       disabled={disabled} aria-expanded={open} aria-haspopup="listbox" aria-controls={open ? listId : undefined} aria-required={required || undefined}
       onKeyDown={keys} onClick={() => open ? close(true) : show()}>
       <span>{selected?.label || 'Selecciona una opción'}</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>

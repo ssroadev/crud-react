@@ -81,7 +81,7 @@
 .results-tabs button > span { font-size: 9px; border-radius: 4px; background: #ffffffa0; padding: 1px 5px; font-variant-numeric: tabular-nums; }
 .sort-control { display: flex; align-items: center; gap: 7px; font-size: 10px; color: var(--muted); }
 .sort-control select { font-size: 11px; border-radius: 7px; padding: 6px 22px 6px 8px; }
-.directory-results .caregiver-grid { gap: 16px; align-items: stretch; }
+.directory-results .caregiver-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 20px; align-items: stretch; }
 .directory-results .result-card { padding: 19px; border-radius: 14px; gap: 13px; box-shadow: 0 3px 12px #26383d03; transition: border-color .15s, box-shadow .15s; }
 .directory-results .result-card:hover { border-color: var(--accent-border); box-shadow: 0 5px 20px #26383d08; }
 .result-card-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 7px; }
@@ -110,10 +110,19 @@
 .directory-results .rate-list li > span { color: var(--muted); }
 .directory-results .rate-list strong { font-size: 13px; font-weight: 650; }
 .rate-list strong small { font-size: 10px; font-weight: 400; color: var(--muted); }
-.result-actions { display: grid; grid-template-columns: .8fr 1.2fr; gap: 8px; }
+.result-actions { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 8px; }
 .result-actions .button-link { padding: 10px; font-size: 12px; justify-content: center; align-items: center; border-radius: 7px; border-color: var(--line); color: #56676c; gap: 8px; }
 .result-actions .primary-link { background: var(--accent); color: #fff; border-color: var(--accent); }
 .result-actions .primary-link:hover { background: var(--accent-hover); }
+.directory-results .result-card { min-width: 0; }
+.card-heading > div:last-child { flex: 1; min-width: 0; }
+.card-heading h3, .card-heading p { overflow-wrap: anywhere; }
+.result-card-top > span { max-width: 100%; overflow-wrap: anywhere; }
+.directory-results .tags > span { max-width: 100%; overflow-wrap: anywhere; }
+.match-reasons li, .match-warnings li { overflow-wrap: anywhere; }
+.directory-results .rate-list li > span { flex: 1 1 130px; min-width: 0; overflow-wrap: anywhere; }
+.directory-results .rate-list strong { max-width: 100%; overflow-wrap: anywhere; }
+.result-actions .button-link { min-width: 0; min-height: 44px; flex-wrap: wrap; white-space: normal; overflow-wrap: anywhere; text-align: center; }
 .broaden-panel { background: #f8f0e2; color: #795d32; border: 1px solid #ebdcc1; border-radius: 12px; padding: 15px 17px; margin-bottom: 16px; }
 .broaden-panel > strong { font-size: 12px; }
 .broaden-panel p { margin: 5px 0 10px; font-size: 11px; line-height: 1.6; }
@@ -128,7 +137,7 @@
 .directory-results .empty-state h3 { font-size: 17px; margin: 15px 0 7px; }
 .directory-results .empty-state p { color: var(--muted); font-size: 12px; max-width: 360px; margin: 0 auto 17px; }
 .directory-results .empty-state button { font-size: 12px; }
-.result-skeletons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.result-skeletons { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 20px; }
 .result-skeleton { min-height: 320px; border: 1px solid var(--line); border-radius: 14px; padding: 22px; background: #fff; }
 .result-skeleton > * { display: block; background: #edf0ed; border-radius: 7px; }
 .result-skeleton > div { width: 48px; height: 48px; margin-bottom: 20px; }
@@ -137,7 +146,7 @@
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .mobile-filter-toggle { display: none; }
 .caregiver-detail { max-width: none; }
-.detail-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+.detail-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
 .detail-columns > div { min-width: 0; scroll-margin-top: 24px; }
 .detail-columns .booking-composer, .detail-columns .auth-required, .detail-columns .booking-success { margin-top: 0; }
 .detail-columns .caregiver-card { border-radius: 16px; }
@@ -187,7 +196,7 @@
   .need-choices label > span { font-size: 11px; padding: 8px 10px; }
   .directory-sidebar .location-search-row > button { min-height: 40px; font-size: 12px; }
   .search-submit { min-height: 44px; font-size: 13px; }
-  .directory-results .caregiver-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .directory-results .caregiver-grid, .result-skeletons { grid-template-columns: minmax(0, 1fr); }
   .result-actions { grid-template-columns: 1fr; }
   .results-title h2 { font-size: 23px; }
   .results-toolbar { gap: 10px; }

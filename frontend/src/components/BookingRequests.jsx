@@ -1,4 +1,5 @@
 import Select from './Select';
+import BookingRating from './BookingRating';
 import { useEffect, useState } from 'react';
 import { completeBooking, getBookings, markBookingRead, reviewBooking } from '../api';
 import statuses from '../../../shared/booking-statuses.json';
@@ -81,6 +82,7 @@ function RequestCard({ booking, received, onUpdated }) {
     {received && booking.status === 'confirmed' && <div className="completion-controls">
       {booking.can_complete ? <><p className="muted small">El horario del servicio ya terminó. Confirma su finalización para guardarlo como completado.</p><button className="secondary" disabled={busy} onClick={() => setCompleting(!completing)}>Marcar como completada</button>{completing && <div className="completion-confirmation"><p>¿Terminaste este servicio? Se actualizará el historial y se informará al dueño.</p><button disabled={busy} onClick={finish}>Confirmar finalización</button></div>}</> : <p className="muted small">Podrás marcar el servicio como completado después de su hora de finalización.</p>}
     </div>}
+    {!received && booking.status === 'completed' && <BookingRating booking={booking} onPublished={(review, message) => onUpdated({ ...booking, review, can_rate: false }, message)} />}
     {error && <p className="error" role="alert">{error}</p>}
     {(booking.created_at || booking.reviewed_at || booking.completed_at) && <details className="request-timeline"><summary>Ver registro de la solicitud</summary><ol>{booking.created_at && <li>Solicitada: {formatBookingTime(booking.created_at)}</li>}{booking.reviewed_at && <li>Respuesta del cuidador: {formatBookingTime(booking.reviewed_at)}</li>}{booking.completed_at && <li>Completada: {formatBookingTime(booking.completed_at)}</li>}</ol></details>}
   </article>;

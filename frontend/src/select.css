@@ -1,0 +1,37 @@
+/* El selector lleva sus estilos a cualquier formulario donde se utilice. */
+.select-control { min-width: 0; width: 100%; position: relative; display: block; }
+.select-control .select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-width: 0; min-height: 46px; padding: 11px 13px; border: 1px solid #d6e1e3; border-radius: 10px; background: #fcfdfd; box-shadow: 0 1px 2px #26383d04; color: var(--ink); font: inherit; font-size: 14px; font-weight: 400; line-height: 1.45; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s, background .15s; }
+.select-trigger > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select-trigger > svg { width: 18px; height: 18px; flex: 0 0 18px; color: #758b90; transition: transform .15s; }
+.select-control .select-trigger.is-placeholder { color: #74858b; }
+.select-control .select-trigger:not(:disabled):hover { border-color: #9cbdc3; background: #fff; filter: none; }
+.select-control.is-open > .select-trigger, .select-control .select-trigger:focus-visible { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px #087f8c12; background: #fff; }
+.select-control.is-open > .select-trigger > svg { transform: rotate(180deg); color: var(--accent); }
+.select-control .select-trigger:disabled { background: #f0f4f5; opacity: 1; color: #7c8b90; cursor: not-allowed; }
+.select-control .select-trigger[aria-invalid="true"] { border-color: #cd6c64; background: #fffafa; }
+.select-popover { z-index: 2000; display: flex; flex-direction: column; padding: 6px; background: #fff; border: 1px solid #d6e1e3; border-radius: 13px; box-shadow: 0 12px 40px #1c363621, 0 2px 5px #1c363609; font-family: inherit; color: var(--ink); overflow: hidden; }
+.select-search { flex-shrink: 0; display: flex; align-items: center; gap: 8px; margin: 2px 2px 6px; padding: 0 11px; background: #f2f7f8; border: 1px solid #dfe8ea; border-radius: 8px; }
+.select-search > svg { flex: 0 0 17px; width: 17px; height: 17px; color: #7d9197; }
+.select-popover .select-search input { min-width: 0; width: 100%; min-height: 40px; padding: 8px 0; font-size: 14px; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--ink); }
+.select-search:focus-within { border-color: var(--accent-border); }
+.select-popover .select-search input:focus { border: 0 !important; outline: 0; box-shadow: none !important; background: transparent; }
+.select-options { position: relative; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #cddcdf transparent; outline: none; }
+.select-group { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: #7c8d93; padding: 13px 10px 6px; }
+.select-option { display: flex; gap: 12px; justify-content: space-between; align-items: center; min-height: 42px; padding: 10px 11px; margin: 2px 0; font-size: 14px; line-height: 1.5; border-radius: 8px; cursor: pointer; }
+.select-option > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.select-option.is-highlighted { background: #f0f6f7; }
+.select-option[aria-selected="true"] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.select-option[aria-disabled="true"] { color: #9caab0; cursor: not-allowed; background: transparent; }
+.select-check { color: var(--accent); flex-shrink: 0; }
+.select-no-results { padding: 18px 12px; text-align: center; color: var(--muted); font-size: 12px; }
+.select-help { flex-shrink: 0; border-top: 1px solid #edf1f2; padding: 9px 5px 4px; color: #7e9096; font-size: 10px; text-align: center; }
+.filter-section .select-control .select-trigger { font-size: 13px; min-height: 44px; }
+.sort-control .select-control { width: 170px; }
+.sort-control .select-control .select-trigger { font-size: 12px; min-height: 40px; padding: 8px 11px; }
+.request-filters .select-control .select-trigger { font-size: 13px; min-height: 44px; }
+@media (max-width: 600px) {
+  .select-control .select-trigger, .filter-section .select-control .select-trigger { min-height: 46px; font-size: 14px; }
+  .select-option { min-height: 44px; font-size: 14px; }
+  .select-popover .select-search input { font-size: 16px; }
+  .select-help { display: none; }
+}
