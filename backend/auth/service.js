@@ -2,6 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { createHash } = require('node:crypto');
 
 const cookieOptions = () => ({ httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 30 * 24 * 60 * 60 * 1000 });
+const recoveryCookieOptions = () => ({ ...cookieOptions(), sameSite: 'lax', maxAge: 15 * 60 * 1000 });
 function readCookies(req) {
   const cookies = {};
   for (const part of (req.headers.cookie || '').split(';')) {
@@ -19,6 +20,17 @@ function clearSessionCookies(res) {
   const { maxAge: _maxAge, ...options } = cookieOptions();
   res.clearCookie('pawhub_access', options);
   res.clearCookie('pawhub_refresh', options);
+  res.clearCookie('pawhub_recovery', { ...options, sameSite: 'lax' });
+}
+
+function setRecoverySessionCookies(res, session) {
+  setSessionCookies(res, session);
+  res.cookie('pawhub_recovery', '1', recoveryCookieOptions());
+}
+
+function clearRecoveryCookie(res) {
+  const { maxAge: _maxAge, ...options } = recoveryCookieOptions();
+  res.clearCookie('pawhub_recovery', options);
 }
 
 function createAuthService(database, clientFactory = () => createClient(process.env.SUPABASE_URL,
@@ -37,11 +49,44 @@ function createAuthService(database, clientFactory = () => createClient(process.
     return { id: user.id, email: user.email, profile, roles: memberships.map((item) => item.role?.name).filter(Boolean) };
   }
 
+  async function requestPasswordRecovery(email, redirectTo) {
+    // A new client per operation avoids sharing mutable auth state across requests.
+    return clientFactory().auth.resetPasswordForEmail(email, { redirectTo });
+  }
+
+  async function verifyPasswordRecovery(tokenHash) {
+    const client = clientFactory();
+    return client.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' });
+  }
+
+  async function updatePasswordFromSession(req, res, password) {
+    const cookies = readCookies(req);
+    const currentSession = req.authSession || (cookies.pawhub_access && cookies.pawhub_refresh
+      ? { access_token: cookies.pawhub_access, refresh_token: cookies.pawhub_refresh } : null);
+    if (!currentSession) {
+      throw Object.assign(new Error('El enlace de recuperación venció o ya fue utilizado. Solicita uno nuevo.'), { status: 401 });
+    }
+    const client = clientFactory();
+    const { data: sessionData, error: sessionError } = await client.auth.setSession(currentSession);
+    if (sessionError || !sessionData.session) {
+      throw Object.assign(new Error('El enlace de recuperación venció o ya fue utilizado. Solicita uno nuevo.'), { status: 401 });
+    }
+    setSessionCookies(res, sessionData.session);
+    const { data: verified, error: verifyError } = await client.auth.getUser(sessionData.session.access_token);
+    if (verifyError || !verified.user) {
+      throw Object.assign(new Error('El enlace de recuperación venció o ya fue utilizado. Solicita uno nuevo.'), { status: 401 });
+    }
+    return client.auth.updateUser({ password });
+  }
+
   async function identify(req, res) {
     const cookies = readCookies(req);
     if (cookies.pawhub_access) {
       const { data, error } = await clientFactory().auth.getUser(cookies.pawhub_access);
-      if (!error && data.user) return { account: await accountFor(data.user.id), token: cookies.pawhub_access };
+      if (!error && data.user) return {
+        account: await accountFor(data.user.id), token: cookies.pawhub_access,
+        session: cookies.pawhub_refresh ? { access_token: cookies.pawhub_access, refresh_token: cookies.pawhub_refresh } : null,
+      };
       if (error?.status >= 500 || error?.name === 'AuthRetryableFetchError') throw Object.assign(new Error('El servicio de acceso no está disponible. Intenta de nuevo.'), { status: 503 });
     }
     if (cookies.pawhub_refresh) {
@@ -58,7 +103,7 @@ function createAuthService(database, clientFactory = () => createClient(process.
       if (!error && data.session && data.user) {
         const account = await accountFor(data.user.id);
         setSessionCookies(res, data.session);
-        return { account, token: data.session.access_token };
+        return { account, token: data.session.access_token, session: data.session };
       }
     }
     clearSessionCookies(res);
@@ -71,11 +116,25 @@ function createAuthService(database, clientFactory = () => createClient(process.
       if (!identity) return res.status(401).json({ error: 'Inicia sesión para continuar.' });
       req.account = identity.account;
       req.accessToken = identity.token;
+      req.authSession = identity.session;
       next();
     } catch (error) { next(error); }
   }
 
-  return { accountFor, identify, requireAccount, clientFactory };
+  async function requireRecovery(req, res, next) {
+    try {
+      const cookies = readCookies(req);
+      if (cookies.pawhub_recovery !== '1') return res.status(401).json({ error: 'Abre el enlace de recuperación más reciente para continuar.' });
+      const identity = await identify(req, res);
+      if (!identity) return res.status(401).json({ error: 'El enlace de recuperación venció o ya fue utilizado. Solicita uno nuevo.' });
+      req.account = identity.account;
+      req.accessToken = identity.token;
+      req.authSession = identity.session;
+      next();
+    } catch (error) { next(error); }
+  }
+
+  return { accountFor, identify, requireAccount, requireRecovery, requestPasswordRecovery, verifyPasswordRecovery, updatePasswordFromSession, clientFactory };
 }
 
-module.exports = { createAuthService, readCookies, setSessionCookies, clearSessionCookies };
+module.exports = { createAuthService, readCookies, setSessionCookies, clearSessionCookies, setRecoverySessionCookies, clearRecoveryCookie };

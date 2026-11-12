@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getSession, logoutAccount } from './api';
 import Caregivers from './components/Caregivers';
 import AuthPage from './components/AuthPage';
+import PawHubLanding from './components/PawHubLanding';
 import AccountProfile from './components/AccountProfile';
 import MyPets from './components/MyPets';
 import BookingRequests from './components/BookingRequests';
@@ -13,13 +14,24 @@ const chatFromHash = () => window.location.hash.slice('#chat/'.length);
 const routeFromHash = () => {
   const route = window.location.hash.slice(1);
   if (route.startsWith('chat/')) return 'chat';
-  return ['login', 'register', 'account', 'pets', 'requests'].includes(route) ? route : 'caregivers';
+  if (['', 'home', 'como-funciona', 'comunidad', 'beneficios'].includes(route)) return 'landing';
+  return ['login', 'register', 'caregivers', 'account', 'pets', 'requests'].includes(route) ? route : 'caregivers';
 };
 
 function initialRoute() {
   const query = new URLSearchParams(window.location.search);
   const fragment = new URLSearchParams(window.location.hash.slice(1));
   let notice = '';
+  if (query.get('auth') === 'recovery') {
+    query.delete('auth');
+    window.history.replaceState(null, '', `${window.location.pathname}${query.toString() ? `?${query}` : ''}#login`);
+    return { page: 'reset-password', notice: '' };
+  }
+  if (query.get('auth') === 'recovery-error') {
+    query.delete('auth');
+    window.history.replaceState(null, '', `${window.location.pathname}${query.toString() ? `?${query}` : ''}#login`);
+    return { page: 'login', notice: 'El enlace de recuperación venció o no es válido. Solicita uno nuevo.' };
+  }
   if (query.has('auth') || fragment.has('access_token') || fragment.has('error_code')) {
     notice = fragment.has('error_code') ? 'El enlace de confirmación venció o no es válido. Intenta iniciar sesión o revisa el correo más reciente.' : 'Si ya confirmaste tu correo, puedes iniciar sesión con tu cuenta.';
     query.delete('auth');
@@ -74,7 +86,20 @@ export default function App() {
     finally { setLoggingOut(false); }
   };
 
-  if (page === 'login' || page === 'register') return <AuthPage key={page} mode={page} onAuthenticated={authenticated} notice={notice} />;
+  if (page === 'login' || page === 'register' || page === 'reset-password') return <AuthPage key={page} mode={page} onAuthenticated={authenticated} onRecoveryComplete={async () => {
+    try {
+      const result = await getSession();
+      identityRevision.current++;
+      setAccount(result.account);
+      setNotice('Tu contraseña se actualizó correctamente.');
+      const destination = result.account ? 'account' : 'login';
+      window.location.hash = destination;
+      setPage(destination);
+    } catch (err) { setError(err.message); }
+  }} notice={notice} />;
+  if (loading && page === 'landing') return <main className="session-loading" role="status">{'Comprobando tu sesi\u00f3n\u2026'}</main>;
+  if (page === 'landing' && !account) return <PawHubLanding />;
+  const homePage = ['landing', 'caregivers'].includes(page);
   const privatePage = ['pets', 'account', 'requests', 'chat'].includes(page);
   return <>
     <header className="site-header">
@@ -86,7 +111,7 @@ export default function App() {
       {error && <p className="error" role="alert">{error}</p>}
       {notice && account && <p className="success" role="status">{notice}</p>}
       {privatePage && loading ? <p role="status">Comprobando tu sesión…</p> : privatePage && !account ? <section className="auth-required"><h2>Este espacio es para ti y tus mascotas</h2><p className="muted">Inicia sesión para acceder a tu perfil y administrar tus mascotas.</p><a className="button-link" href="#login">Iniciar sesión</a><p>¿Aún no tienes cuenta? <a href="#register">Regístrate en PawHub</a></p></section> : <>
-        <div hidden={page !== 'caregivers'}><Caregivers key={`${account?.id ?? 'guest'}-${homeRevision}`} account={account} /></div>
+        <div hidden={!homePage}><Caregivers key={`${account?.id ?? 'guest'}-${homeRevision}`} account={account} /></div>
         {page === 'pets' && account && <MyPets key={account.id} />}
         {page === 'account' && account && <AccountProfile key={account.id} account={account} onUpdated={setAccount} />}
         {page === 'requests' && account && <BookingRequests key={account.id} account={account} />}
